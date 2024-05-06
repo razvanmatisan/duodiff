@@ -3,6 +3,7 @@ import torch
 
 from datasets import get_celeba_dataloader, get_cifar10_dataloader
 
+
 @pytest.mark.parametrize("batch_size", [16])
 def test_cifar10(batch_size):
     dataloader = get_cifar10_dataloader(batch_size=batch_size)
