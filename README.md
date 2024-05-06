@@ -15,8 +15,20 @@ python -m pytest tests
 ## Resources
 ### DeeDiff
 
-**Tin's code**: https://github.com/stases/EarlyDiffusion
+Tin's code: https://github.com/stases/EarlyDiffusion
 
-**Paper**: https://arxiv.org/pdf/2309.17074
+Paper: https://arxiv.org/pdf/2309.17074
 
-### Diffusion Models
+### Math Diffusion Models
+
+Lecture Notes in Probabilistic Diffusion Models: https://arxiv.org/html/2312.10393v1
+
+Lil'Log blogpost: https://lilianweng.github.io/posts/2021-07-11-diffusion-models
+
+### Backbones Diffusion Models
+
+U-Net: https://arxiv.org/pdf/1505.04597
+
+U-ViT: https://arxiv.org/pdf/2209.12152
+
+Diffusion Transformer (DiT): https://arxiv.org/pdf/2212.09748
