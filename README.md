@@ -1,4 +1,4 @@
-# Early-Stopping-Diffusion
+# Early Stopping Diffusion
 
 ## Resources
 ### DeeDiff
