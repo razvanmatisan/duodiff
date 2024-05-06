@@ -3,7 +3,7 @@ from torchvision import transforms
 from torchvision.datasets import CelebA
 
 
-def get_dataloader(data_dir="data/", batch_size=4):
+def get_celeba_dataloader(data_dir="data/", batch_size=4):
     """
     Builds a dataloader with all images from the CelebA dataset.
     Args:

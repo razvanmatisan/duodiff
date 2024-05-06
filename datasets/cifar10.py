@@ -3,7 +3,7 @@ from torchvision import transforms
 from torchvision.datasets import CIFAR10
 
 
-def get_dataloader(data_dir="data/cifar10/", batch_size=16):
+def get_cifar10_dataloader(data_dir="data/cifar10/", batch_size=16):
     """
     Builds a dataloader with all training images from the CIFAR-10 dataset.
     Args:
