@@ -1,12 +1,8 @@
-import os
 import unittest
 
-import numpy as np
 import torch
-import matplotlib.pyplot as plt
-from torch.utils.data import DataLoader
 
-from data_utils import cifar10_utils, celebA_utils
+from data_utils import celebA_utils, cifar10_utils
 
 
 class TestDataUtils(unittest.TestCase):

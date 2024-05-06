@@ -1,6 +1,6 @@
-from torchvision.datasets import CelebA
 from torch.utils.data import DataLoader
 from torchvision import transforms
+from torchvision.datasets import CelebA
 
 
 def get_dataloader(data_dir="data/", batch_size=4):
