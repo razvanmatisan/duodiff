@@ -1,7 +1,7 @@
 # Early-Stopping-Diffusion
 
-## Papers / code to read
-### Original paper
+## Resources
+### DeeDiff
 
 **Tin's code**: https://github.com/stases/EarlyDiffusion
 
