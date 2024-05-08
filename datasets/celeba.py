@@ -21,6 +21,7 @@ def get_celeba_dataloader(data_dir="data/", batch_size=4):
         [
             transforms.ToTensor(),
             transforms.Normalize(mean, std),
+            transforms.CenterCrop((178, 178)),
             transforms.Resize((64, 64)),
         ]
     )
