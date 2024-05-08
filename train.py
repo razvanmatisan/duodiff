@@ -141,6 +141,7 @@ def save_checkpoint(model, optimizer, train_dataloader, lr_scheduler, step, loss
 
 
 def load_checkpoint(args, model, optimizer, train_dataloader, lr_scheduler, device):
+    checkpoint = None
     if args.load_checkpoint_path:
         checkpoint = torch.load(args.load_checkpoint_path, map_location=device)
         if "model_state_dict" in checkpoint:
@@ -168,7 +169,7 @@ def load_checkpoint(args, model, optimizer, train_dataloader, lr_scheduler, devi
 
         finished_steps = checkpoint.get("step", 0)
 
-    return finished_steps
+    return finished_steps, checkpoint
 
 
 def loss_fn(model, batch, noise_scheduler, device, args):
@@ -201,9 +202,15 @@ def train(
     device,
     writer,
     args,
+    checkpoint=None,
     finished_steps=0,
 ):
-    dataloader_iterator = InfiniteDataloaderIterator(train_dataloader)
+    dataloader_iterator = InfiniteDataloaderIterator(dataloader)
+
+    # Need to restore torch rng state after creating the iterator
+    if "torch_rng_state" in checkpoint:
+        torch.set_rng_state(checkpoint["torch_rng_state"])
+
     model.train()
     for step in range(finished_steps + 1, args.n_steps + 1):
         batch = next(dataloader_iterator)
@@ -215,8 +222,6 @@ def train(
         accelerator.clip_grad_norm_(model.parameters(), args.max_grad_norm)
         optimizer.step()
         lr_scheduler.step()
-
-        # print(random.random(), np.random.randn(2), torch.randn(2))
 
         if args.save_every_n_steps and step % args.save_every_n_steps == 0:
             save_checkpoint(
@@ -248,7 +253,7 @@ if __name__ == "__main__":
     )
 
     if args.load_checkpoint_path:
-        finished_steps = load_checkpoint(
+        finished_steps, checkpoint = load_checkpoint(
             args, model, optimizer, train_dataloader, lr_scheduler, device
         )
 
@@ -263,4 +268,5 @@ if __name__ == "__main__":
         writer,
         args,
         finished_steps=finished_steps,
+        checkpoint=checkpoint,
     )
