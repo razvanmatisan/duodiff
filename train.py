@@ -100,8 +100,6 @@ def train(
     args,
     finished_steps=0,
 ):
-    losses = []
-    scaler = GradScaler()
 
     dataloader_iterator = InfiniteDataloaderIterator(train_dataloader)
     # TODO dataloader checkpointing
@@ -109,7 +107,7 @@ def train(
         model.train()
         optimizer.zero_grad()
 
-        batch = next(iter(train_dataloader))
+        batch = next(dataloader_iterator)
         data = batch[0].to(device)
         batch_size = data.size(0)
         clean_images = data
