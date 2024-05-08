@@ -1,9 +1,12 @@
 import argparse
 import tqdm
+import time
+import numpy as np
+import random
+from pathlib import Path
 
 import torch
 import torch.nn.functional as F
-from torch.cuda.amp import GradScaler, autocast
 from torch.utils.tensorboard import SummaryWriter
 from accelerate import Accelerator
 
@@ -17,25 +20,50 @@ from utils.train_utils import (
     seed_everything,
 )
 
+
 def get_args():
     parser = argparse.ArgumentParser(description="Training parameters")
     # Default parameters from https://github.com/baofff/U-ViT/blob/main/configs/cifar10_uvit_small.py
 
     # Training
     parser.add_argument("--seed", type=int, default=1, help="Seed")
-    parser.add_argument("--checkpoint", type=str, default=None, help="Checkpoint path")
-    # parser.add_argument("--epochs", type=int, required=True, help="Number of epochs")
     parser.add_argument("--n_steps", type=int, required=True, help="Number of steps")
     parser.add_argument("--batch_size", type=int, default=2, help="Number of steps")
     parser.add_argument(
         "--num_train_timesteps", type=int, default=1000, help="Number of timesteps"
     )
     parser.add_argument("--use_amp", action="store_true", default=False, help="Use AMP")
-    parser.add_argument(
-        "--amp_dtype", type=str, default="bf16", help="AMP data type"
-    )
+    parser.add_argument("--amp_dtype", type=str, default="bf16", help="AMP data type")
     parser.add_argument(
         "--max_grad_norm", type=float, default=1.0, help="Max gradient norm"
+    )
+
+    # Logging
+    parser.add_argument(
+        "--log_path", type=str, default="logs", help="Directory for logs"
+    )
+    parser.add_argument(
+        "--log_every_n_steps", type=int, default=100, help="Log every n steps"
+    )
+
+    # Checkpointing
+    parser.add_argument(
+        "--load_checkpoint_path",
+        type=str,
+        default=None,
+        help="Checkpoint path for loading the training state",
+    )
+    parser.add_argument(
+        "--save_checkpoint_path",
+        type=str,
+        default=None,
+        help="Checkpoint path for saving the training state (log_path/save_checkpoint_path)",
+    )
+    parser.add_argument(
+        "--save_every_n_steps",
+        type=int,
+        default=None,
+        help="Frequency of saving the checkpoint",
     )
 
     # Optimizer
@@ -89,41 +117,98 @@ def get_args():
     return parser.parse_args()
 
 
+def save_checkpoint(model, optimizer, train_dataloader, lr_scheduler, step, loss):
+    path = Path(args.log_path)
+    if args.save_checkpoint_path:
+        path = path / args.save_checkpoint_path
+    else:
+        path = path / f"{args.dataset}_{args.model}.pth"
+
+    torch.save(
+        {
+            "step": step,
+            "model_state_dict": model.state_dict(),
+            "optimizer_state_dict": optimizer.state_dict(),
+            "lr_scheduler_state_dict": lr_scheduler.state_dict(),
+            "dataloader_sampler_state": train_dataloader.sampler.get_state(),
+            "loss": loss,
+            "torch_rng_state": torch.get_rng_state(),
+            "numpy_rng_state": np.random.get_state(),
+            "random_rng_state": random.getstate(),
+        },
+        path,
+    )
+
+
+def load_checkpoint(args, model, optimizer, train_dataloader, lr_scheduler, device):
+    if args.load_checkpoint_path:
+        checkpoint = torch.load(args.load_checkpoint_path, map_location=device)
+        if "model_state_dict" in checkpoint:
+            model.load_state_dict(checkpoint["model_state_dict"])
+        else:
+            model.load_state_dict(checkpoint)
+
+        if "optimizer_state_dict" in checkpoint:
+            optimizer.load_state_dict(checkpoint["optimizer_state_dict"])
+
+        if "lr_scheduler_state_dict" in checkpoint:
+            lr_scheduler.load_state_dict(checkpoint["lr_scheduler_state_dict"])
+
+        if "dataloader_sampler_state" in checkpoint:
+            train_dataloader.sampler.set_state(checkpoint["dataloader_sampler_state"])
+
+        if "torch_rng_state" in checkpoint:
+            torch.set_rng_state(checkpoint["torch_rng_state"])
+
+        if "numpy_rng_state" in checkpoint:
+            np.random.set_state(checkpoint["numpy_rng_state"])
+
+        if "random_rng_state" in checkpoint:
+            random.setstate(checkpoint["random_rng_state"])
+
+        finished_steps = checkpoint.get("step", 0)
+
+    return finished_steps
+
+
+def loss_fn(model, batch, noise_scheduler, device, args):
+    data = batch[0].to(device)
+    batch_size = data.size(0)
+    clean_images = data
+
+    timesteps = torch.randint(
+        0, args.num_train_timesteps, (batch_size,), device=device
+    ).long()
+    timesteps_normalized = timesteps.float() / args.num_train_timesteps
+    noise, noisy_images = noise_scheduler.add_noise(clean_images, timesteps)
+
+    if args.model == "uvit":
+        predicted_noise = model(noisy_images, timesteps_normalized)
+        loss = F.mse_loss(predicted_noise, noise)
+    elif args.model == "deediff_uvit":
+        raise NotImplementedError
+
+    return loss
+
+
 def train(
     model,
     optimizer,
-    train_dataloader,
+    dataloader,
     noise_scheduler,
     lr_scheduler,
+    accelerator,
     device,
     writer,
     args,
     finished_steps=0,
 ):
-
     dataloader_iterator = InfiniteDataloaderIterator(train_dataloader)
-    # TODO dataloader checkpointing
-    for step in tqdm.tqdm(range(finished_steps, args.n_steps)):
-        model.train()
-        optimizer.zero_grad()
-
+    model.train()
+    for step in range(finished_steps + 1, args.n_steps + 1):
         batch = next(dataloader_iterator)
-        data = batch[0].to(device)
-        batch_size = data.size(0)
-        clean_images = data
 
-        timesteps = torch.randint(
-            0, args.num_train_timesteps, (batch_size,), device=device
-        ).long()
-        timesteps_normalized = timesteps.float() / args.num_train_timesteps
-        noise, noisy_images = noise_scheduler.add_noise(clean_images, timesteps)
-
-
-        if args.model == "uvit":
-            predicted_noise = model(noisy_images, timesteps_normalized)
-            loss = F.mse_loss(predicted_noise, noise)
-        elif args.model == "deediff_uvit":
-            raise NotImplementedError
+        loss = loss_fn(model, batch, noise_scheduler, device, args)
 
         optimizer.zero_grad()
         accelerator.backward(loss)
@@ -131,7 +216,15 @@ def train(
         optimizer.step()
         lr_scheduler.step()
 
-        writer.add_scalar("Loss/train", loss.item(), step)
+        # print(random.random(), np.random.randn(2), torch.randn(2))
+
+        if args.save_every_n_steps and step % args.save_every_n_steps == 0:
+            save_checkpoint(
+                model, optimizer, dataloader, lr_scheduler, step, loss.item()
+            )
+
+        if step % args.log_every_n_steps == 0:
+            writer.add_scalar("Loss/train", loss.item(), step)
 
 
 if __name__ == "__main__":
@@ -145,24 +238,29 @@ if __name__ == "__main__":
     noise_scheduler = get_noise_scheduler(args)
     device = "cuda" if torch.cuda.is_available() else "cpu"
     lr_scheduler = get_lr_scheduler(optimizer, args)
-    writer = SummaryWriter()
+    writer = SummaryWriter(args.log_path)
+    finished_steps = 0  # Step from which to resume training (by default set to 0 but might be overwritten when loading checkpoint)
 
     accelerator = Accelerator(mixed_precision=args.amp_dtype)
-    model, optimizer, trainloader, lr_scheduler = accelerator.prepare(model, optimizer, train_dataloader, lr_scheduler)
-
     device = accelerator.device
+    model, optimizer, trainloader, lr_scheduler = accelerator.prepare(
+        model, optimizer, train_dataloader, lr_scheduler
+    )
 
-
-    if args.checkpoint:
-        checkpoint = torch.load(args.checkpoint, map_location=device)
-        if "model_state_dict" in checkpoint:
-            model.load_state_dict(checkpoint["model_state_dict"])
-        else:
-            model.load_state_dict(checkpoint)
-
-        if "optimizer_state_dict" in checkpoint:
-            optimizer.load_state_dict(checkpoint["optimizer_state_dict"])
+    if args.load_checkpoint_path:
+        finished_steps = load_checkpoint(
+            args, model, optimizer, train_dataloader, lr_scheduler, device
+        )
 
     train(
-        model, optimizer, train_dataloader, noise_scheduler, lr_scheduler, device, writer, args
+        model,
+        optimizer,
+        train_dataloader,
+        noise_scheduler,
+        lr_scheduler,
+        accelerator,
+        device,
+        writer,
+        args,
+        finished_steps=finished_steps,
     )

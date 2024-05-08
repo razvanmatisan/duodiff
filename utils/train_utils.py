@@ -39,20 +39,21 @@ def get_optimizer(model, args):
 
 def get_dataloader(args):
     if args.dataset == "cifar10":
-        return get_cifar10_dataloader(batch_size=args.batch_size)
+        return get_cifar10_dataloader(batch_size=args.batch_size, seed=args.seed)
     elif args.adataset == "celeba":
-        return get_celeba_dataloader(batch_size=args.batch_size)
+        return get_celeba_dataloader(batch_size=args.batch_size, seed=args.seed)
 
 
 def get_noise_scheduler(args):
     return NoiseScheduler(beta_steps=args.num_train_timesteps)
 
 
-def get_lr_scheduler(optimizer, args):
+def get_lr_scheduler(optimizer, args, last_epoch=-1):
     return get_cosine_schedule_with_warmup(
         optimizer=optimizer,
         num_warmup_steps=args.num_warmup_steps,
         num_training_steps=args.n_steps,
+        last_epoch=last_epoch,
     )
 
 

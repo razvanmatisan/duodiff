@@ -1,9 +1,11 @@
 from torch.utils.data import DataLoader
 from torchvision import transforms
 from torchvision.datasets import CIFAR10
+from datasets.sampler import ResumableRandomSampler
+import torch
 
 
-def get_cifar10_dataloader(data_dir="data/cifar10/", batch_size=16):
+def get_cifar10_dataloader(batch_size, seed, data_dir="data/cifar10/"):
     """
     Builds a dataloader with all training images from the CIFAR-10 dataset.
     Args:
@@ -24,6 +26,8 @@ def get_cifar10_dataloader(data_dir="data/cifar10/", batch_size=16):
 
     dataset = CIFAR10(root=data_dir, train=True, download=True, transform=transform)
 
+    sampler = ResumableRandomSampler(dataset, seed)
+
     return DataLoader(
-        dataset=dataset, batch_size=batch_size, shuffle=True, drop_last=True
+        dataset=dataset, batch_size=batch_size, drop_last=True, sampler=sampler
     )
