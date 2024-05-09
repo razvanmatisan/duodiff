@@ -1,4 +1,5 @@
 import torch
+from einops import rearrange
 from tqdm import tqdm
 
 
@@ -280,3 +281,41 @@ class NoiseScheduler:
         self.alphas_bar = self.alphas_bar.to(device)
         self.alpha_bar_prev = self.alpha_bar_prev.to(device)
         self.betas_tilde = self.betas_tilde.to(device)
+
+
+def sample_images(model, n_samples, height, width, num_steps, seed):
+    device = model.device
+    generator = torch.Generator(device=device).manual_seed(seed)
+
+    betas = torch.linspace(1e-4, 0.02, num_steps).to(device)
+    alphas = 1 - betas
+    alphas_bar = torch.cumprod(alphas, dim=0)
+    alphas_bar_previous = torch.cat(
+        [torch.tensor([1.0], device=device), alphas_bar[:-1]]
+    )
+    betas_tilde = betas * (1 - alphas_bar_previous) / (1 - alphas_bar)
+
+    x = torch.randn(n_samples, 3, height, width, generator=generator)
+    for t in range(num_steps, 0, -1):
+        with torch.inference_mode():
+            time_tensor = t * torch.ones(n_samples, device=device)
+            epsilon = model(x, time_tensor)
+
+        alpha_t = alphas[t - 1]
+        alpha_bar_t = alphas_bar[t - 1]
+        sigma_t = torch.sqrt(betas_tilde[t - 1])
+
+        z = torch.rand(x.size(), generator=generator, device=device) if t > 1 else 0
+        x = (
+            1 / torch.sqrt(alpha_t) * (x - (1 - alpha_t) / (1 - alpha_bar_t) * epsilon)
+            + sigma_t * z
+        )
+
+    return x
+
+    samples = x
+    samples = samples.cpu().numpy()
+    samples = (samples + 1) / 2
+    samples = rearrange(samples, "b c h w -> b h w c")
+
+    return samples

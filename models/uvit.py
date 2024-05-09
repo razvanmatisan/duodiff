@@ -372,3 +372,7 @@ class UViT(nn.Module):
         x = unpatchify(x, self.in_chans)
         x = self.final_layer(x)
         return x
+
+    @property
+    def device(self):
+        return next(self.parameters()).device

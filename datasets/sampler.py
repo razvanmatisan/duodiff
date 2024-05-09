@@ -13,7 +13,7 @@ class ResumableRandomSampler(torch.utils.data.Sampler):
         generator (Generator): Generator used in sampling.
     """
 
-    def __init__(self, data_source, seed=1):
+    def __init__(self, data_source, seed):
         self.data_source = data_source
         self.generator = torch.Generator()
         self.generator.manual_seed(seed)

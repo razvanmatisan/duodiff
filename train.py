@@ -1,12 +1,15 @@
 import argparse
 import random
 from pathlib import Path
+from matplotlib import pyplot as plt
+import math
 
 import numpy as np
 import torch
 import torch.nn.functional as F
 from accelerate import Accelerator
 from torch.utils.tensorboard import SummaryWriter
+import torchvision
 
 from utils.train_utils import (
     InfiniteDataloaderIterator,
@@ -18,6 +21,8 @@ from utils.train_utils import (
     seed_everything,
 )
 
+from ddpm_core import sample_images
+
 
 def get_args():
     parser = argparse.ArgumentParser(description="Training parameters")
@@ -26,7 +31,7 @@ def get_args():
     # Training
     parser.add_argument("--seed", type=int, default=1, help="Seed")
     parser.add_argument("--n_steps", type=int, required=True, help="Number of steps")
-    parser.add_argument("--batch_size", type=int, default=2, help="Number of steps")
+    parser.add_argument("--batch_size", type=int, default=128, help="Number of steps")
     parser.add_argument(
         "--num_train_timesteps", type=int, default=1000, help="Number of timesteps"
     )
@@ -41,7 +46,31 @@ def get_args():
         "--log_path", type=str, default="logs", help="Directory for logs"
     )
     parser.add_argument(
-        "--log_every_n_steps", type=int, default=100, help="Log every n steps"
+        "--log_every_n_steps", type=int, default=None, help="Log every n steps"
+    )
+    parser.add_argument(
+        "--n_samples",
+        type=int,
+        default=16,
+        help="Number of images to sample for logging",
+    )
+    parser.add_argument(
+        "--sample_height",
+        type=int,
+        default=32,
+        help="Height of the images sampled for logging",
+    )
+    parser.add_argument(
+        "--sample_width",
+        type=int,
+        default=32,
+        help="Width of the images sampled for logging",
+    )
+    parser.add_argument(
+        "--sample_seed",
+        type=int,
+        default=42,
+        help="Seed for sampling images for logging",
     )
 
     # Checkpointing
@@ -206,7 +235,7 @@ def train(
     dataloader_iterator = InfiniteDataloaderIterator(dataloader)
 
     # Need to restore torch rng state after creating the iterator
-    if "torch_rng_state" in checkpoint:
+    if checkpoint is not None and "torch_rng_state" in checkpoint:
         torch.set_rng_state(checkpoint["torch_rng_state"])
 
     model.train()
@@ -226,8 +255,23 @@ def train(
                 model, optimizer, dataloader, lr_scheduler, step, loss.item()
             )
 
-        if step % args.log_every_n_steps == 0:
-            writer.add_scalar("Loss/train", loss.item(), step)
+        writer.add_scalar("Loss/train", loss.item(), step)
+
+        if args.log_every_n_steps is not None and step % args.log_every_n_steps == 0:
+            samples = sample_images(
+                model,
+                args.n_samples,
+                height=args.sample_height,
+                width=args.sample_width,
+                num_steps=args.num_train_timesteps,
+                seed=args.sample_seed,
+            )
+
+            img_grid = torchvision.utils.make_grid(
+                samples, nrow=int(math.sqrt(samples.size(0))), normalize=True
+            )
+
+            writer.add_image(f"Samples", img_grid, global_step=step)
 
 
 if __name__ == "__main__":
@@ -241,8 +285,7 @@ if __name__ == "__main__":
     noise_scheduler = get_noise_scheduler(args)
     device = "cuda" if torch.cuda.is_available() else "cpu"
     lr_scheduler = get_lr_scheduler(optimizer, args)
-    writer = SummaryWriter(args.log_path)
-    finished_steps = 0  # Step from which to resume training (by default set to 0 but might be overwritten when loading checkpoint)
+    writer = SummaryWriter(args.log_path, filename_suffix="xxx")
 
     accelerator = Accelerator(mixed_precision=args.amp_dtype)
     device = accelerator.device
@@ -254,6 +297,9 @@ if __name__ == "__main__":
         finished_steps, checkpoint = load_checkpoint(
             args, model, optimizer, train_dataloader, lr_scheduler, device
         )
+    else:
+        finished_steps = 0
+        checkpoint = None
 
     train(
         model,
