@@ -1,6 +1,5 @@
 import torch
 from tqdm import tqdm
-from utils.field_utils import create_time_embedding, create_space_embedding
 
 
 def early_exit(lambda_threshold, model_output, earliest_exit_index, verbose=False):
@@ -136,7 +135,6 @@ class NoiseScheduler:
         with torch.no_grad():
             # Step 1: Generate the initial batch of samples
             x_t = torch.randn((num_samples, *data_shape)).to(device)
-            original_data_shape = data_shape
             # Step 2: Iterate from num_steps down to 1
             for t in tqdm(range(num_steps - 1, 0, -1), desc="Sampling Progress"):
                 # Step 2.5: Calculate the noise
@@ -214,7 +212,6 @@ class NoiseScheduler:
         with torch.no_grad():
             # Step 1: Generate the initial batch of samples
             x_t = torch.randn((num_samples, *data_shape)).to(device)
-            original_data_shape = data_shape
             # Step 2: Iterate from num_steps down to 1
             for t in tqdm(range(num_steps - 1, 0, -1), desc="Sampling Progress"):
                 # Step 2.5: Calculate the noise

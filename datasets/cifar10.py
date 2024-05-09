@@ -1,8 +1,8 @@
 from torch.utils.data import DataLoader
 from torchvision import transforms
 from torchvision.datasets import CIFAR10
+
 from datasets.sampler import ResumableRandomSampler
-import torch
 
 
 def get_cifar10_dataloader(batch_size, seed, data_dir="data/cifar10/"):

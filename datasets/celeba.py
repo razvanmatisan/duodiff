@@ -2,6 +2,8 @@ from torch.utils.data import DataLoader
 from torchvision import transforms
 from torchvision.datasets import CelebA
 
+from datasets.sampler import ResumableRandomSampler
+
 
 def get_celeba_dataloader(batch_size, seed, data_dir="data/"):
     """

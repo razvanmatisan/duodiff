@@ -1,15 +1,16 @@
 import random
-import numpy as np
 import time
-import torch
 from typing import Sequence
-from torch.utils.data import DataLoader
-from diffusers.optimization import get_cosine_schedule_with_warmup
 
-from datasets.cifar10 import get_cifar10_dataloader
+import numpy as np
+import torch
+from diffusers.optimization import get_cosine_schedule_with_warmup
+from torch.utils.data import DataLoader
+
 from datasets.celeba import get_celeba_dataloader
-from models.uvit import UViT
+from datasets.cifar10 import get_cifar10_dataloader
 from ddpm_core import NoiseScheduler
+from models.uvit import UViT
 
 
 def get_model(args):
