@@ -157,3 +157,7 @@ class EarlyExitUViT(nn.Module):
         x = unpatchify(x, self.uvit.in_chans)
         x = self.uvit.final_layer(x)
         return x, classifier_outputs, outputs
+
+    @property
+    def device(self):
+        return next(self.parameters()).device

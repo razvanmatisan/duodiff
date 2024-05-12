@@ -1,5 +1,6 @@
 import argparse
 import random
+import time
 from pathlib import Path
 from matplotlib import pyplot as plt
 import math
@@ -92,6 +93,12 @@ def get_args():
         default=None,
         help="Frequency of saving the checkpoint",
     )
+    parser.add_argument(
+        "--save_new_every_n_steps",
+        type=int,
+        default=None,
+        help="Frequency of creating a new checkpoint (not overwriting the last checkpoint)",
+    )
 
     # Optimizer
     parser.add_argument(
@@ -116,7 +123,7 @@ def get_args():
 
     # Model
     parser.add_argument(
-        "--model", type=str, default="uvit", choices=["uvit"], help="Model name"
+        "--model", type=str, default="uvit", choices=["uvit", "deediff_uvit"], help="Model name"
     )
     parser.add_argument("--img_size", type=int, default=32, help="Image size")
     parser.add_argument("--patch_size", type=int, default=2, help="Patch size")
@@ -144,12 +151,17 @@ def get_args():
     return parser.parse_args()
 
 
-def save_checkpoint(model, optimizer, train_dataloader, lr_scheduler, step, loss):
+def save_checkpoint(
+    model, optimizer, train_dataloader, lr_scheduler, step, loss, overwrite=True
+):
     path = Path(args.log_path)
     if args.save_checkpoint_path:
         path = path / args.save_checkpoint_path
     else:
         path = path / f"{args.dataset}_{args.model}.pth"
+
+    if not overwrite:
+        path = path.parent / (path.stem + f"_step-{step}" + path.suffix)
 
     torch.save(
         {
@@ -168,38 +180,44 @@ def save_checkpoint(model, optimizer, train_dataloader, lr_scheduler, step, loss
 
 
 def load_checkpoint(args, model, optimizer, train_dataloader, lr_scheduler, device):
-    checkpoint = None
-    if args.load_checkpoint_path:
-        checkpoint = torch.load(args.load_checkpoint_path, map_location=device)
+    checkpoint = torch.load(args.load_checkpoint_path, map_location=device)
+
+    if args.model == "uvit":
         if "model_state_dict" in checkpoint:
             model.load_state_dict(checkpoint["model_state_dict"])
         else:
             model.load_state_dict(checkpoint)
+    elif args.model == "deediff_uvit":
+        if "model_state_dict" in checkpoint:
+            model.uvit.load_state_dict(checkpoint["model_state_dict"])
+        else:
+            model.uvit.load_state_dict(checkpoint)
 
-        if "optimizer_state_dict" in checkpoint:
-            optimizer.load_state_dict(checkpoint["optimizer_state_dict"])
+    if "optimizer_state_dict" in checkpoint:
+        optimizer.load_state_dict(checkpoint["optimizer_state_dict"])
 
-        if "lr_scheduler_state_dict" in checkpoint:
-            lr_scheduler.load_state_dict(checkpoint["lr_scheduler_state_dict"])
+    if "lr_scheduler_state_dict" in checkpoint:
+        lr_scheduler.load_state_dict(checkpoint["lr_scheduler_state_dict"])
 
-        if "dataloader_sampler_state" in checkpoint:
-            train_dataloader.sampler.set_state(checkpoint["dataloader_sampler_state"])
+    if "dataloader_sampler_state" in checkpoint:
+        train_dataloader.sampler.set_state(checkpoint["dataloader_sampler_state"])
 
-        if "torch_rng_state" in checkpoint:
-            torch.set_rng_state(checkpoint["torch_rng_state"])
+    if "torch_rng_state" in checkpoint:
+        torch.set_rng_state(checkpoint["torch_rng_state"])
 
-        if "numpy_rng_state" in checkpoint:
-            np.random.set_state(checkpoint["numpy_rng_state"])
+    if "numpy_rng_state" in checkpoint:
+        np.random.set_state(checkpoint["numpy_rng_state"])
 
-        if "random_rng_state" in checkpoint:
-            random.setstate(checkpoint["random_rng_state"])
+    if "random_rng_state" in checkpoint:
+        random.setstate(checkpoint["random_rng_state"])
 
-        finished_steps = checkpoint.get("step", 0)
+    finished_steps = checkpoint.get("step", 0)
 
     return finished_steps, checkpoint
 
 
 def loss_fn(model, batch, noise_scheduler, device, args):
+    device = model.device
     data = batch[0].to(device)
     batch_size = data.size(0)
     clean_images = data
@@ -214,7 +232,29 @@ def loss_fn(model, batch, noise_scheduler, device, args):
         predicted_noise = model(noisy_images, timesteps_normalized)
         loss = F.mse_loss(predicted_noise, noise)
     elif args.model == "deediff_uvit":
-        raise NotImplementedError
+        predicted_noise, classifier_outputs, outputs = model(
+            noisy_images, timesteps_normalized
+        )
+        
+        # Reshape list of L elements of shape (bs, C, H, W) into tensor of shape (L, bs, C, H, W)
+        classifier_outputs = torch.stack(classifier_outputs, dim=0)
+        outputs = torch.stack(outputs, dim=0)
+
+        # L_simple
+        L_simple = F.mse_loss(predicted_noise, noise)
+        
+        # L_u_t
+        u_t_hats = torch.stack([F.tanh(torch.abs(output - noise)) for output in outputs], dim=0)
+        u_t_hats = u_t_hats.mean(dim=(-1, -2, -3))
+        L_u_t = F.mse_loss(classifier_outputs, u_t_hats, reduction="sum")
+                
+        # L_UAL_t
+        L_n_t = torch.stack([(output - noise) ** 2 for output in outputs], dim=0)
+        L_n_t = L_n_t.mean(dim=(-1, -2, -3))
+        L_UAL_t = ((1 - classifier_outputs) * L_n_t).mean(dim=1).sum(dim=0)
+        
+        # Total loss
+        loss = L_simple + L_u_t + L_UAL_t
 
     return loss
 
@@ -239,7 +279,13 @@ def train(
         torch.set_rng_state(checkpoint["torch_rng_state"])
 
     model.train()
+    times = []
+    log_times = []
+    save_times = []
+    step_times = []
     for step in range(finished_steps + 1, args.n_steps + 1):
+        tic = time.time()
+        step_tic = time.time()
         batch = next(dataloader_iterator)
 
         loss = loss_fn(model, batch, noise_scheduler, device, args)
@@ -250,28 +296,87 @@ def train(
         optimizer.step()
         lr_scheduler.step()
 
-        if args.save_every_n_steps and step % args.save_every_n_steps == 0:
+        writer.add_scalar("Train loss", loss.item(), step)
+
+        step_toc = time.time()
+        step_times.append(step_toc - step_tic)
+
+        if args.log_every_n_steps is not None and (
+            step % args.log_every_n_steps == 0 or step == args.n_steps
+        ):
+            log_tic = time.time()
+            print(f"step {step}: train loss = {loss.item()}")
+            samples = noise_scheduler.sample(
+                model=model,
+                num_steps=args.num_train_timesteps,
+                data_shape=(3, args.sample_height, args.sample_width),
+                num_samples=args.n_samples,
+                seed=args.sample_seed,
+                model_type="UViT",
+            )
+            img_grid = (
+                torchvision.utils.make_grid(
+                    samples, nrow=int(math.sqrt(samples.size(0))), normalize=True
+                )
+                * 0.5
+                + 0.5
+            )
+
+            # samples = sample_images(
+            #     model,
+            #     args.n_samples,
+            #     height=args.sample_height,
+            #     width=args.sample_width,
+            #     num_steps=args.num_train_timesteps,
+            #     seed=args.sample_seed,
+            # )
+
+            # img_grid_min_max = torchvision.utils.make_grid(
+            #     samples, nrow=int(math.sqrt(samples.size(0))), normalize=True
+            # )
+
+            # img_grid_std_mean = torchvision.utils.make_grid(
+            #     (samples + 1) / 2, nrow=int(math.sqrt(samples.size(0))), normalize=False
+            # )
+
+            # writer.add_image(f"Samples min max", img_grid_min_max, global_step=step)
+            # writer.add_image(f"Samples std mean", img_grid_std_mean, global_step=step)
+            writer.add_image(f"Samples", img_grid, global_step=step)
+            log_toc = time.time()
+            log_times.append(log_toc - log_tic)
+
+        if args.save_every_n_steps and (
+            step % args.save_every_n_steps == 0 or step == args.n_steps
+        ):
+            save_tic = time.time()
             save_checkpoint(
                 model, optimizer, dataloader, lr_scheduler, step, loss.item()
             )
 
-        writer.add_scalar("Loss/train", loss.item(), step)
+            save_toc = time.time()
+            save_times.append(save_toc - save_tic)
 
-        if args.log_every_n_steps is not None and step % args.log_every_n_steps == 0:
-            samples = sample_images(
+        if (
+            args.save_new_every_n_steps is not None
+            and step % args.save_new_every_n_steps == 0
+        ):
+            save_checkpoint(
                 model,
-                args.n_samples,
-                height=args.sample_height,
-                width=args.sample_width,
-                num_steps=args.num_train_timesteps,
-                seed=args.sample_seed,
+                optimizer,
+                dataloader,
+                lr_scheduler,
+                step,
+                loss.item(),
+                overwrite=False,
             )
 
-            img_grid = torchvision.utils.make_grid(
-                samples, nrow=int(math.sqrt(samples.size(0))), normalize=True
-            )
+        toc = time.time()
+        times.append(toc - tic)
 
-            writer.add_image(f"Samples", img_grid, global_step=step)
+    print(f"Average total time = {np.mean(times)}")
+    print(f"Average save time = {np.mean(save_times)}")
+    print(f"Average log time = {np.mean(log_times)}")
+    print(f"Average step time = {np.mean(step_times)}")
 
 
 if __name__ == "__main__":
@@ -283,15 +388,15 @@ if __name__ == "__main__":
     train_dataloader = get_dataloader(args)
     optimizer = get_optimizer(model, args)
     noise_scheduler = get_noise_scheduler(args)
-    device = "cuda" if torch.cuda.is_available() else "cpu"
     lr_scheduler = get_lr_scheduler(optimizer, args)
-    writer = SummaryWriter(args.log_path, filename_suffix="xxx")
+    writer = SummaryWriter(args.log_path)
 
     accelerator = Accelerator(mixed_precision=args.amp_dtype)
     device = accelerator.device
     model, optimizer, trainloader, lr_scheduler = accelerator.prepare(
         model, optimizer, train_dataloader, lr_scheduler
     )
+    noise_scheduler.set_device(model.device)
 
     if args.load_checkpoint_path:
         finished_steps, checkpoint = load_checkpoint(

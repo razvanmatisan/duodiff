@@ -11,6 +11,7 @@ from datasets.celeba import get_celeba_dataloader
 from datasets.cifar10 import get_cifar10_dataloader
 from ddpm_core import NoiseScheduler
 from models.uvit import UViT
+from models.early_exit import EarlyExitUViT
 
 
 def get_model(args):
@@ -26,6 +27,20 @@ def get_model(args):
             mlp_time_embed=args.mlp_time_embed,
             num_classes=args.num_classes,
         )
+    elif args.model == "deediff_uvit":
+        model = UViT(
+            img_size=args.img_size,
+            patch_size=args.patch_size,
+            embed_dim=args.embed_dim,
+            depth=args.depth,
+            num_heads=args.num_heads,
+            mlp_ratio=args.mlp_ratio,
+            qkv_bias=args.qkv_bias,
+            mlp_time_embed=args.mlp_time_embed,
+            num_classes=args.num_classes,
+        )
+        
+        return EarlyExitUViT(model)
 
 
 def get_optimizer(model, args):
