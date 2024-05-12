@@ -71,10 +71,11 @@ class AttentionProbe(nn.Module):
 
 
 class EarlyExitUViT(nn.Module):
-    def __init__(self, uvit: UViT):
+    def __init__(self, uvit: UViT, exit_threshold=0.2):
         super().__init__()
 
         self.uvit = uvit
+        self.exit_threshold = exit_threshold
 
         # Add classifiers (they tell us if we should exit)
         self.in_blocks_classifiers = nn.ModuleList(
@@ -135,20 +136,32 @@ class EarlyExitUViT(nn.Module):
         for blk, classifier, output_head in zip(
             self.uvit.in_blocks, self.in_blocks_classifiers, self.in_blocks_heads
         ):
-            classifier_outputs.append(classifier(x))
-            outputs.append(output_head(x))
+            classifier_output = classifier(x)
+            classifier_outputs.append(classifier_output)
+            output = output_head(x)
+            outputs.append(output)
+            if not self.training and all(classifier_output < self.exit_threshold):
+                return output, classifier_outputs, outputs
             x = blk(x)
             skips.append(x)
 
-        classifier_outputs.append(self.mid_block_classifier(x))
-        outputs.append(self.mid_block_head(x))
+        classifier_output = self.mid_block_classifier(x)
+        classifier_outputs.append(classifier_output)
+        output = self.mid_block_head(x)
+        outputs.append(output)
+        if not self.training and all(classifier_output < self.exit_threshold):
+            return output, classifier_outputs, outputs
         x = self.uvit.mid_block(x)
 
         for blk, classifier, output_head in zip(
             self.uvit.out_blocks, self.out_blocks_classifiers, self.out_blocks_heads
         ):
-            classifier_outputs.append(classifier(x))
-            outputs.append(output_head(x))
+            classifier_output = classifier(x)
+            classifier_outputs.append(classifier_output)
+            output = output_head(x)
+            outputs.append(output)
+            if not self.training and all(classifier_output < self.exit_threshold):
+                return output, classifier_outputs, outputs
             x = blk(x, skips.pop())
 
         x = self.uvit.norm(x)
@@ -156,6 +169,7 @@ class EarlyExitUViT(nn.Module):
         x = x[:, self.uvit.extras :, :]
         x = unpatchify(x, self.uvit.in_chans)
         x = self.uvit.final_layer(x)
+        
         return x, classifier_outputs, outputs
 
     @property
