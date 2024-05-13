@@ -321,25 +321,6 @@ def train(
                 + 0.5
             )
 
-            # samples = sample_images(
-            #     model,
-            #     args.n_samples,
-            #     height=args.sample_height,
-            #     width=args.sample_width,
-            #     num_steps=args.num_train_timesteps,
-            #     seed=args.sample_seed,
-            # )
-
-            # img_grid_min_max = torchvision.utils.make_grid(
-            #     samples, nrow=int(math.sqrt(samples.size(0))), normalize=True
-            # )
-
-            # img_grid_std_mean = torchvision.utils.make_grid(
-            #     (samples + 1) / 2, nrow=int(math.sqrt(samples.size(0))), normalize=False
-            # )
-
-            # writer.add_image(f"Samples min max", img_grid_min_max, global_step=step)
-            # writer.add_image(f"Samples std mean", img_grid_std_mean, global_step=step)
             writer.add_image(f"Samples", img_grid, global_step=step)
             log_toc = time.time()
             log_times.append(log_toc - log_tic)
