@@ -108,6 +108,7 @@ class NoiseScheduler:
         num_steps,
         data_shape,
         num_samples,
+        seed,
         model_type="perceiver",
         time_frequency=None,
         space_frequency=None,
@@ -131,11 +132,14 @@ class NoiseScheduler:
         """
         # Get the device from the model
         device = next(model.parameters()).device
+        generator = torch.Generator(device=device).manual_seed(seed)
         model.eval()
 
         with torch.no_grad():
             # Step 1: Generate the initial batch of samples
-            x_t = torch.randn((num_samples, *data_shape)).to(device)
+            x_t = torch.randn(
+                (num_samples, *data_shape), generator=generator, device=device
+            )
             # Step 2: Iterate from num_steps down to 1
             for t in tqdm(range(num_steps - 1, 0, -1), desc="Sampling Progress"):
                 # Step 2.5: Calculate the noise
@@ -143,19 +147,23 @@ class NoiseScheduler:
                     eps = model(x_t, t, return_dict=False)[0]
                 elif model_type == "UViT":
                     t_normalized = t / num_steps
-                    time_tensor = (
-                        torch.tensor([t_normalized]).repeat(num_samples).to(device)
+                    time_tensor = torch.tensor([t_normalized], device=device).repeat(
+                        num_samples
                     )
                     eps = model(x_t, time_tensor)
                 elif model_type == "DeeDiff_UViT":
                     t_normalized = t / num_steps
-                    time_tensor = (
-                        torch.tensor([t_normalized]).repeat(num_samples).to(device)
+                    time_tensor = torch.tensor([t_normalized], device=device).repeat(
+                        num_samples
                     )
                     eps, _, _ = model(x_t, time_tensor)
 
                 # Step 3: Sample z from N(0, I) if t > 1, else z = 0
-                z = torch.randn_like(x_t) if t > 1 else torch.zeros_like(x_t)
+                z = (
+                    torch.randn(x_t.size(), generator=generator, device=device)
+                    if t > 1
+                    else torch.zeros_like(x_t)
+                )
 
                 # Get the corresponding values for alpha_t and alpha_bar_t
                 alpha_t = self._match_shape(self.alphas[t : t + 1], x_t.shape).to(
@@ -285,7 +293,7 @@ class NoiseScheduler:
 
 def sample_images(model, n_samples, height, width, num_steps, seed):
     device = model.device
-    generator = torch.Generator(device=device).manual_seed(seed)
+    generator = torch.Generator(device="cpu").manual_seed(seed)
 
     betas = torch.linspace(1e-4, 0.02, num_steps).to(device)
     alphas = 1 - betas
@@ -295,7 +303,7 @@ def sample_images(model, n_samples, height, width, num_steps, seed):
     )
     betas_tilde = betas * (1 - alphas_bar_previous) / (1 - alphas_bar)
 
-    x = torch.randn(n_samples, 3, height, width, generator=generator)
+    x = torch.randn(n_samples, 3, height, width, generator=generator).to(device)
     for t in range(num_steps, 0, -1):
         with torch.inference_mode():
             time_tensor = t * torch.ones(n_samples, device=device)
@@ -305,17 +313,10 @@ def sample_images(model, n_samples, height, width, num_steps, seed):
         alpha_bar_t = alphas_bar[t - 1]
         sigma_t = torch.sqrt(betas_tilde[t - 1])
 
-        z = torch.rand(x.size(), generator=generator, device=device) if t > 1 else 0
+        z = torch.rand(x.size(), generator=generator).to(device) if t > 1 else 0
         x = (
             1 / torch.sqrt(alpha_t) * (x - (1 - alpha_t) / (1 - alpha_bar_t) * epsilon)
             + sigma_t * z
         )
 
     return x
-
-    samples = x
-    samples = samples.cpu().numpy()
-    samples = (samples + 1) / 2
-    samples = rearrange(samples, "b c h w -> b h w c")
-
-    return samples
