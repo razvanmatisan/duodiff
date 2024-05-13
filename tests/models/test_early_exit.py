@@ -53,12 +53,6 @@ def test_attention_probe():
     assert y.shape == (16,)
 
 
-def setup_inputs(batch_size=8, num_channels=3, height=32, width=32):
-    x = torch.zeros((batch_size, num_channels, height, width))
-    t = torch.ones(batch_size)
-    return x, t
-
-
 def test_backward():
     model = EarlyExitUViT(UViT(**cifar10_config))
     y, classifier_outputs, outputs = model(x, t)
@@ -73,16 +67,19 @@ def test_backward():
 def test_inference_no_early_exit():
     model = EarlyExitUViT(UViT(**cifar10_config), exit_threshold=-torch.inf)
     model.eval()
-    y, classifier_outputs, outputs = model(x, t)
+    with torch.inference_mode():
+        y, classifier_outputs = model(x, t)
 
-    assert len(classifier_outputs) == len(outputs) == 13
+    assert len(classifier_outputs) == 13
     assert y.shape == (batch_size, num_channels, height, width)
+
 
 def test_inference_exit_first():
     model = EarlyExitUViT(UViT(**cifar10_config), exit_threshold=torch.inf)
     model.eval()
-    y, classifier_outputs, outputs = model(x, t)
+    with torch.inference_mode():
+        y, classifier_outputs = model(x, t)
 
     assert y.shape == (batch_size, num_channels, height, width)
-    assert len(classifier_outputs) == len(outputs) == 1
+    assert len(classifier_outputs) == 1
     assert all(classifier_outputs[0] < model.exit_threshold)

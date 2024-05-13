@@ -138,19 +138,21 @@ class EarlyExitUViT(nn.Module):
         ):
             classifier_output = classifier(x)
             classifier_outputs.append(classifier_output)
-            output = output_head(x)
-            outputs.append(output)
-            if not self.training and all(classifier_output < self.exit_threshold):
-                return output, classifier_outputs, outputs
+            if self.training:
+                outputs.append(output_head(x))
+            else:
+                if all(classifier_output < self.exit_threshold):
+                    return output_head(x), classifier_outputs
             x = blk(x)
             skips.append(x)
 
         classifier_output = self.mid_block_classifier(x)
         classifier_outputs.append(classifier_output)
-        output = self.mid_block_head(x)
-        outputs.append(output)
-        if not self.training and all(classifier_output < self.exit_threshold):
-            return output, classifier_outputs, outputs
+        if self.training:
+            outputs.append(self.mid_block_head(x))
+        else:
+            if all(classifier_output < self.exit_threshold):
+                return self.mid_block_head(x), classifier_outputs
         x = self.uvit.mid_block(x)
 
         for blk, classifier, output_head in zip(
@@ -158,10 +160,11 @@ class EarlyExitUViT(nn.Module):
         ):
             classifier_output = classifier(x)
             classifier_outputs.append(classifier_output)
-            output = output_head(x)
-            outputs.append(output)
-            if not self.training and all(classifier_output < self.exit_threshold):
-                return output, classifier_outputs, outputs
+            if self.training:
+                outputs.append(output_head(x))
+            else:
+                if all(classifier_output < self.exit_threshold):
+                    return output_head(x), classifier_outputs
             x = blk(x, skips.pop())
 
         x = self.uvit.norm(x)
@@ -169,8 +172,10 @@ class EarlyExitUViT(nn.Module):
         x = x[:, self.uvit.extras :, :]
         x = unpatchify(x, self.uvit.in_chans)
         x = self.uvit.final_layer(x)
-        
-        return x, classifier_outputs, outputs
+        if self.training:
+            return x, classifier_outputs, outputs
+        else:
+            return x, classifier_outputs
 
     @property
     def device(self):
