@@ -39,7 +39,7 @@ def get_model(args):
             mlp_time_embed=args.mlp_time_embed,
             num_classes=args.num_classes,
         )
-        
+
         return EarlyExitUViT(model)
 
 

@@ -9,10 +9,8 @@ import torch
 import torch.nn.functional as F
 import torchvision
 from accelerate import Accelerator
-from matplotlib import pyplot as plt
 from torch.utils.tensorboard import SummaryWriter
 
-from ddpm_core import sample_images
 from utils.train_utils import (
     InfiniteDataloaderIterator,
     get_dataloader,
@@ -122,7 +120,11 @@ def get_args():
 
     # Model
     parser.add_argument(
-        "--model", type=str, default="uvit", choices=["uvit", "deediff_uvit"], help="Model name"
+        "--model",
+        type=str,
+        default="uvit",
+        choices=["uvit", "deediff_uvit"],
+        help="Model name",
     )
     parser.add_argument("--img_size", type=int, default=32, help="Image size")
     parser.add_argument("--patch_size", type=int, default=2, help="Patch size")
@@ -234,24 +236,26 @@ def loss_fn(model, batch, noise_scheduler, device, args):
         predicted_noise, classifier_outputs, outputs = model(
             noisy_images, timesteps_normalized
         )
-        
+
         # Reshape list of L elements of shape (bs, C, H, W) into tensor of shape (L, bs, C, H, W)
         classifier_outputs = torch.stack(classifier_outputs, dim=0)
         outputs = torch.stack(outputs, dim=0)
 
         # L_simple
         L_simple = F.mse_loss(predicted_noise, noise)
-        
+
         # L_u_t
-        u_t_hats = torch.stack([F.tanh(torch.abs(output - noise)) for output in outputs], dim=0)
+        u_t_hats = torch.stack(
+            [F.tanh(torch.abs(output - noise)) for output in outputs], dim=0
+        )
         u_t_hats = u_t_hats.mean(dim=(-1, -2, -3))
         L_u_t = F.mse_loss(classifier_outputs, u_t_hats, reduction="sum")
-                
+
         # L_UAL_t
         L_n_t = torch.stack([(output - noise) ** 2 for output in outputs], dim=0)
         L_n_t = L_n_t.mean(dim=(-1, -2, -3))
         L_UAL_t = ((1 - classifier_outputs) * L_n_t).mean(dim=1).sum(dim=0)
-        
+
         # Total loss
         loss = L_simple + L_u_t + L_UAL_t
 
@@ -321,7 +325,7 @@ def train(
                 + 0.5
             )
 
-            writer.add_image(f"Samples", img_grid, global_step=step)
+            writer.add_image("Samples", img_grid, global_step=step)
             log_toc = time.time()
             log_times.append(log_toc - log_tic)
 
