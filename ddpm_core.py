@@ -144,18 +144,18 @@ class NoiseScheduler:
                 # Step 2.5: Calculate the noise
                 if model_type == "huggingface":
                     eps = model(x_t, t, return_dict=False)[0]
-                elif model_type == "UViT":
+                elif model_type == "uvit":
                     t_normalized = t / num_steps
                     time_tensor = torch.tensor([t_normalized], device=device).repeat(
                         num_samples
                     )
                     eps = model(x_t, time_tensor)
-                elif model_type == "DeeDiff_UViT":
+                elif model_type == "deediff_uvit":
                     t_normalized = t / num_steps
                     time_tensor = torch.tensor([t_normalized], device=device).repeat(
                         num_samples
                     )
-                    eps, _, _ = model(x_t, time_tensor)
+                    eps = model(x_t, time_tensor)[0]
 
                 # Step 3: Sample z from N(0, I) if t > 1, else z = 0
                 z = (
@@ -186,6 +186,8 @@ class NoiseScheduler:
                 # Update x_t for the next iteration
                 x_t = x_t_minus_1
             # Step 6: Return the batch of generated samples
+
+            model.train()
             return x_t
 
     def early_exit_sample(

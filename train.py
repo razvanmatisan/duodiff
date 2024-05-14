@@ -315,7 +315,7 @@ def train(
                 data_shape=(3, args.sample_height, args.sample_width),
                 num_samples=args.n_samples,
                 seed=args.sample_seed,
-                model_type="UViT",
+                model_type=args.model,
             )
             img_grid = (
                 torchvision.utils.make_grid(
