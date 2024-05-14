@@ -251,7 +251,7 @@ def loss_fn(model, batch, noise_scheduler, device, args):
         L_UAL_t = ((1 - classifier_outputs) * L_n_t).mean(dim=1).sum(dim=0)
 
         # Total loss
-        loss = L_simple + L_u_t + L_UAL_t
+        loss = L_simple, L_u_t, L_UAL_t
 
     return loss
 
