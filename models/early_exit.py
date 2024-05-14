@@ -31,19 +31,20 @@ class OutputHead(nn.Module):
 class AttentionProbe(nn.Module):
     """
     TODO: come up with a more efficient classifier!
-    With embed_dim = 512 and num_heads=1, it has 788993 parameters.
-    Thus, it is not recommended to use a higher number of heads
+    With embed_dim = 512, it has 788993 parameters.
     """
 
     def __init__(self, embed_dim, num_heads=1):
         super().__init__()
+        assert embed_dim % num_heads == 0
+        head_dim = embed_dim // num_heads
         self.num_heads = num_heads
 
         # The query is a single vector that will be learned
-        self.q = nn.Parameter(torch.zeros(1, num_heads, 1, embed_dim))
-        self.weight_kv = nn.Linear(embed_dim, 2 * embed_dim * num_heads)
+        self.q = nn.Parameter(torch.zeros(1, num_heads, 1, head_dim))
+        self.weight_kv = nn.Linear(embed_dim, 2 * embed_dim)
         self.classification = nn.Sequential(
-            nn.Linear(embed_dim * num_heads, embed_dim),
+            nn.Linear(embed_dim, embed_dim),
             nn.SiLU(),
             nn.Linear(embed_dim, 1),
         )
@@ -54,7 +55,7 @@ class AttentionProbe(nn.Module):
 
         # Compute key and vector from input
         kv = self.weight_kv(x)
-        k, v = rearrange(kv, "b l (k h d) -> k b h l d", k=2, h=self.num_heads)
+        k, v = rearrange(kv, "b l (k h hd) -> k b h l hd", k=2, h=self.num_heads)
 
         return q, k, v
 
@@ -64,7 +65,7 @@ class AttentionProbe(nn.Module):
 
         q, k, v = self.get_qkv(x)
         x = F.scaled_dot_product_attention(q, k, v)
-        x = rearrange(x, "b h l d -> b l (h d)")
+        x = rearrange(x, "b h l hd -> b l (h hd)")
         x = self.classification(x)
         x = x.squeeze()
         return x
