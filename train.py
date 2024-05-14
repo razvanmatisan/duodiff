@@ -183,16 +183,10 @@ def save_checkpoint(
 def load_checkpoint(args, model, optimizer, train_dataloader, lr_scheduler, device):
     checkpoint = torch.load(args.load_checkpoint_path, map_location=device)
 
-    if args.model == "uvit":
-        if "model_state_dict" in checkpoint:
-            model.load_state_dict(checkpoint["model_state_dict"])
-        else:
-            model.load_state_dict(checkpoint)
-    elif args.model == "deediff_uvit":
-        if "model_state_dict" in checkpoint:
-            model.uvit.load_state_dict(checkpoint["model_state_dict"])
-        else:
-            model.uvit.load_state_dict(checkpoint)
+    if "model_state_dict" in checkpoint:
+        model.load_state_dict(checkpoint["model_state_dict"])
+    else:
+        model.load_state_dict(checkpoint)
 
     if "optimizer_state_dict" in checkpoint:
         optimizer.load_state_dict(checkpoint["optimizer_state_dict"])
