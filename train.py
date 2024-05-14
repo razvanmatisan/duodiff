@@ -286,14 +286,20 @@ def train(
         batch = next(dataloader_iterator)
 
         loss = loss_fn(model, batch, noise_scheduler, device, args)
+        if isinstance(loss, tuple):
+            regular_loss, classifier_loss, weighted_loss = loss
+            writer.add_scalar("Regular train loss", regular_loss.item(), step)
+            writer.add_scalar("Classifier train loss", classifier_loss.item(), step)
+            writer.add_scalar("Weighted train loss", weighted_loss.item(), step)
+            loss = regular_loss + classifier_loss + weighted_loss
+        else:
+            writer.add_scalar("Train loss", loss.item(), step)
 
         optimizer.zero_grad()
         accelerator.backward(loss)
         accelerator.clip_grad_norm_(model.parameters(), args.max_grad_norm)
         optimizer.step()
         lr_scheduler.step()
-
-        writer.add_scalar("Train loss", loss.item(), step)
 
         step_toc = time.time()
         step_times.append(step_toc - step_tic)
