@@ -31,7 +31,7 @@ def get_args():
     parser.add_argument("--n_steps", type=int, required=True, help="Number of steps")
     parser.add_argument("--batch_size", type=int, default=128, help="Number of steps")
     parser.add_argument(
-        "--num_train_timesteps", type=int, default=1000, help="Number of timesteps"
+        "--num_timesteps", type=int, default=1000, help="Number of timesteps"
     )
     parser.add_argument("--use_amp", action="store_true", default=False, help="Use AMP")
     parser.add_argument("--amp_dtype", type=str, default="bf16", help="AMP data type")
@@ -309,7 +309,7 @@ def train(
         ):
             log_tic = time.time()
             print(f"step {step}: train loss = {loss.item()}")
-            samples = noise_scheduler.sample(
+            samples, logging_dict = noise_scheduler.sample(
                 model=model,
                 num_steps=args.num_train_timesteps,
                 data_shape=(3, args.sample_height, args.sample_width),

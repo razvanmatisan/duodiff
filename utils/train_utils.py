@@ -61,7 +61,7 @@ def get_dataloader(args):
 
 
 def get_noise_scheduler(args):
-    return NoiseScheduler(beta_steps=args.num_train_timesteps)
+    return NoiseScheduler(beta_steps=args.num_timesteps)
 
 
 def get_lr_scheduler(optimizer, args, last_epoch=-1):

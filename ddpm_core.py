@@ -1,3 +1,5 @@
+from collections import defaultdict
+
 import torch
 from tqdm import tqdm
 
@@ -129,6 +131,7 @@ class NoiseScheduler:
         Returns:
         Tensor: Batch of generated samples.
         """
+        logging_dict = defaultdict(list)
         # Get the device from the model
         device = next(model.parameters()).device
         generator = torch.Generator(device=device).manual_seed(seed)
@@ -155,7 +158,9 @@ class NoiseScheduler:
                     time_tensor = torch.tensor([t_normalized], device=device).repeat(
                         num_samples
                     )
-                    eps = model(x_t, time_tensor)[0]
+                    model_output = model(x_t, time_tensor)
+                    eps = model_output[0]
+                    logging_dict["classifier_outputs"].append(model_output[1])
 
                 # Step 3: Sample z from N(0, I) if t > 1, else z = 0
                 z = (
@@ -188,7 +193,7 @@ class NoiseScheduler:
             # Step 6: Return the batch of generated samples
 
             model.train()
-            return x_t
+            return x_t, logging_dict
 
     def early_exit_sample(
         self,
