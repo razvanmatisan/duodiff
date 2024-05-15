@@ -235,7 +235,7 @@ class NoiseScheduler:
             # Step 1: Generate the initial batch of samples
             x_t = torch.randn((num_samples, *data_shape)).to(device)
             # Step 2: Iterate from num_steps down to 1
-            for t in tqdm(range(num_steps - 1, 0, -1), desc="Sampling Progress"):
+            for t in tqdm(range(num_steps - 1, -1, -1), desc="Sampling Progress"):
                 # Step 2.5: Calculate the noise
                 if model_type == "huggingface":
                     eps = model(x_t, t, return_dict=False)[0]

@@ -10,8 +10,12 @@ from utils.train_utils import (
     seed_everything,
 )
 
-# device = torch.device("msp")
-device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+if torch.cuda.is_available():
+    device = torch.device("cuda")
+elif torch.backends.mps.is_available():
+    device = torch.device("mps")
+else:
+    device = torch.device("cpu")
 print(f"Device: {device}")
 
 betas = torch.linspace(1e-4, 0.02, 1000).to(device)
@@ -46,7 +50,7 @@ def get_args():
     parser.add_argument(
         "--n_samples",
         type=int,
-        default=8,
+        default=1,
         help="Number of images to sample for logging",
     )
     parser.add_argument(
@@ -147,10 +151,15 @@ if __name__ == "__main__":
         for time, gflops in sorted(logging_dict["benchmarking"], key=lambda x: x[0]):
             writer.add_scalar("benchmarking", gflops, time)
 
-    early_exit_layers = logging_dict["early_exit_layers"]
-    for time, layer in sorted(early_exit_layers, key=lambda x: x[0]):
-        writer.add_scalar("early_exit_layers", layer, time)
+    classifier_outputs = logging_dict["classifier_outputs"]
+    for timestep, outputs_t in enumerate(classifier_outputs):
+        exit_layer = 13 if len(outputs_t) == 13 and outputs_t[-1] > args.exit_threshold else len(outputs_t)
+        writer.add_scalar("early_exit_layers", exit_layer, timestep)
+        for layer in range(exit_layer):
+            writer.add_scalar(f"UEM Classifier output at layer {layer} wrt time", outputs_t[layer], timestep)
+        if timestep % 50 == 0:
+            for layer in range(exit_layer):
+                writer.add_scalar(f"UEM Classifier output at timestep {timestep} wrt layer", outputs_t[layer], layer + 1)
 
     for i, sample in enumerate(samples):
         writer.add_image(f"Sample {i + 1}", sample)
-        # writer.add_text(f"Classifier outputs of sample {i}", classifier_outputs[:, :, i])

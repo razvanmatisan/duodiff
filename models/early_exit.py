@@ -144,7 +144,7 @@ class EarlyExitUViT(nn.Module):
             if self.training:
                 outputs.append(output_head(x))
             else:
-                if all(classifier_output < self.exit_threshold):
+                if torch.all(classifier_output < self.exit_threshold):
                     return output_head(x), classifier_outputs, early_exit_layer
             x = blk(x)
             skips.append(x)
@@ -155,7 +155,7 @@ class EarlyExitUViT(nn.Module):
         if self.training:
             outputs.append(self.mid_block_head(x))
         else:
-            if all(classifier_output < self.exit_threshold):
+            if torch.all(classifier_output < self.exit_threshold):
                 return self.mid_block_head(x), classifier_outputs, early_exit_layer
         x = self.uvit.mid_block(x)
         early_exit_layer += 1
@@ -168,7 +168,7 @@ class EarlyExitUViT(nn.Module):
             if self.training:
                 outputs.append(output_head(x))
             else:
-                if all(classifier_output < self.exit_threshold):
+                if torch.all(classifier_output < self.exit_threshold):
                     return output_head(x), classifier_outputs, early_exit_layer
             x = blk(x, skips.pop())
             early_exit_layer += 1
