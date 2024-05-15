@@ -11,3 +11,4 @@ matplotlib
 diffusers
 accelerate
 tensorboard
+ptflops
