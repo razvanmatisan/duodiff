@@ -218,9 +218,9 @@ def loss_fn(model, batch, noise_scheduler, device, args):
     clean_images = data
 
     timesteps = torch.randint(
-        0, args.num_train_timesteps, (batch_size,), device=device
+        0, args.num_timesteps, (batch_size,), device=device
     ).long()
-    timesteps_normalized = timesteps.float() / args.num_train_timesteps
+    timesteps_normalized = timesteps.float() / args.num_timesteps
     noise, noisy_images = noise_scheduler.add_noise(clean_images, timesteps)
 
     if args.model == "uvit":
@@ -311,7 +311,7 @@ def train(
             print(f"step {step}: train loss = {loss.item()}")
             samples, logging_dict = noise_scheduler.sample(
                 model=model,
-                num_steps=args.num_train_timesteps,
+                num_steps=args.num_timesteps,
                 data_shape=(3, args.sample_height, args.sample_width),
                 num_samples=args.n_samples,
                 seed=args.sample_seed,
