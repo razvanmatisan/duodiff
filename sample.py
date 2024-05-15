@@ -116,7 +116,6 @@ if __name__ == "__main__":
 
     if args.load_checkpoint_path:
         state_dict = torch.load(args.load_checkpoint_path, "cpu")
-        print(state_dict)
         model.load_state_dict(state_dict["model_state_dict"])
     else:
         print("The loaded checkpoint path is wrong or not provided!")
