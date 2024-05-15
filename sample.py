@@ -1,20 +1,18 @@
 import argparse
 
 import torch
-from einops import rearrange
-from matplotlib import pyplot as plt
 from torch.utils.tensorboard import SummaryWriter
-from tqdm import tqdm
 
 from models.early_exit import EarlyExitUViT
 from models.uvit import UViT
 from utils.train_utils import (
-    get_model,
     get_noise_scheduler,
     seed_everything,
 )
 
-device = "mps"
+# device = torch.device("msp")
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+print(f"Device: {device}")
 
 betas = torch.linspace(1e-4, 0.02, 1000).to(device)
 alphas = 1 - betas
@@ -40,7 +38,10 @@ def get_args():
 
     # Logging
     parser.add_argument(
-        "--log_path", type=str, default="samples/threshold -inf", help="Directory for samples"
+        "--log_path",
+        type=str,
+        default="samples/threshold -inf",
+        help="Directory for samples",
     )
     parser.add_argument(
         "--n_samples",
@@ -84,6 +85,13 @@ def get_args():
         help="Model name",
     )
 
+    parser.add_argument(
+        "--exit_threshold",
+        type=float,
+        default=-torch.inf,
+        help="Early exit threshold",
+    )
+
     return parser.parse_args()
 
 
@@ -104,13 +112,15 @@ if __name__ == "__main__":
         num_classes=-1,
     )
 
-    model = EarlyExitUViT(uvit)
+    model = EarlyExitUViT(uvit=uvit, exit_threshold=args.exit_threshold)
 
-    model = EarlyExitUViT(uvit=uvit, exit_threshold=-torch.inf)
-    state_dict = torch.load("./logs/6257371/cifar10_deediff_uvit.pth", "cpu")
-    model.load_state_dict(
-        state_dict['model_state_dict']
-    )
+    if args.load_checkpoint_path:
+        state_dict = torch.load(args.load_checkpoint_path, "cpu")
+        print(state_dict)
+        model.load_state_dict(state_dict["model_state_dict"])
+    else:
+        print("The loaded checkpoint path is wrong or not provided!")
+        exit(1)
 
     model = model.eval()
     model = model.to(device)
@@ -118,13 +128,13 @@ if __name__ == "__main__":
     noise_scheduler = get_noise_scheduler(args)
 
     samples, logging_dict = noise_scheduler.sample(
-                    model=model,
-                    num_steps=args.num_timesteps,
-                    data_shape=(3, args.sample_height, args.sample_width),
-                    num_samples=args.n_samples,
-                    seed=args.sample_seed,
-                    model_type=args.model,
-                )
+        model=model,
+        num_steps=args.num_timesteps,
+        data_shape=(3, args.sample_height, args.sample_width),
+        num_samples=args.n_samples,
+        seed=args.sample_seed,
+        model_type=args.model,
+    )
     # classifier_outputs = torch.tensor(logging_dict["classifier_outputs"])
 
     for i, sample in enumerate(samples):
