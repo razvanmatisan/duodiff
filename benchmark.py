@@ -13,8 +13,8 @@ def get_gflops(model, x, t):
         (x, t),
         input_constructor=lambda inputs: {"x": inputs[0], "timesteps": inputs[1]},
         as_strings=False,
-        print_per_layer_stat=True,
-        verbose=True,
+        print_per_layer_stat=False,  # TODO: Do we want a detailed analysis per layer?
+        verbose=False,
     )
 
     # From mac to GMac
@@ -22,10 +22,6 @@ def get_gflops(model, x, t):
 
     # GFlops ~= 2 * GMacs
     gflops = gmacs * 2
-
-    print("Computational complexity: {} GMacs".format(gmacs))
-    print("Computational complexity: {} GFlops".format(gflops))
-    print("Number of parameters: {}".format(params))
 
     return gflops
 
@@ -53,3 +49,6 @@ if __name__ == "__main__":
 
     x = torch.zeros((batch_size, num_channels, height, width))
     t = torch.ones(batch_size)
+
+    gflops = get_gflops(model, x, t)
+    print(gflops)

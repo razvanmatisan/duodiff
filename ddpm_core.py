@@ -3,6 +3,8 @@ from collections import defaultdict
 import torch
 from tqdm import tqdm
 
+from benchmark import get_gflops
+
 
 def early_exit(lambda_threshold, model_output, earliest_exit_index, verbose=False):
     predicted_noise, u_i, g_i = model_output
@@ -110,7 +112,8 @@ class NoiseScheduler:
         data_shape,
         num_samples,
         seed,
-        model_type="perceiver",
+        model_type,
+        benchmarking,
         time_frequency=None,
         space_frequency=None,
         coordinates=None,
@@ -145,9 +148,7 @@ class NoiseScheduler:
             # Step 2: Iterate from num_steps down to 1
             for t in tqdm(range(num_steps - 1, 0, -1), desc="Sampling Progress"):
                 # Step 2.5: Calculate the noise
-                if model_type == "huggingface":
-                    eps = model(x_t, t, return_dict=False)[0]
-                elif model_type == "uvit":
+                if model_type == "uvit":
                     t_normalized = t / num_steps
                     time_tensor = torch.tensor([t_normalized], device=device).repeat(
                         num_samples
@@ -161,6 +162,12 @@ class NoiseScheduler:
                     model_output = model(x_t, time_tensor)
                     eps = model_output[0]
                     logging_dict["classifier_outputs"].append(model_output[1])
+                    logging_dict["early_exit_layers"].append((t, model_output[2]))
+
+                # [Optional] Step 2.6: Benchmarking
+                if benchmarking:
+                    gflops = get_gflops(model, x_t, time_tensor)
+                    logging_dict["benchmarking"].append((t, gflops))
 
                 # Step 3: Sample z from N(0, I) if t > 1, else z = 0
                 z = (

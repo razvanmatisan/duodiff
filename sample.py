@@ -92,6 +92,13 @@ def get_args():
         help="Early exit threshold",
     )
 
+    # Benchmarking
+    parser.add_argument(
+        "--benchmarking",
+        action="store_true",
+        help="True if we want to benchmark the sampler",
+    )
+
     return parser.parse_args()
 
 
@@ -115,7 +122,7 @@ if __name__ == "__main__":
     model = EarlyExitUViT(uvit=uvit, exit_threshold=args.exit_threshold)
 
     if args.load_checkpoint_path:
-        state_dict = torch.load(args.load_checkpoint_path, "cpu")
+        state_dict = torch.load(args.load_checkpoint_path, device)
         model.load_state_dict(state_dict["model_state_dict"])
     else:
         print("The loaded checkpoint path is wrong or not provided!")
@@ -133,8 +140,16 @@ if __name__ == "__main__":
         num_samples=args.n_samples,
         seed=args.sample_seed,
         model_type=args.model,
+        benchmarking=args.benchmarking,
     )
-    # classifier_outputs = torch.tensor(logging_dict["classifier_outputs"])
+
+    if args.benchmarking:
+        for time, gflops in sorted(logging_dict["benchmarking"], key=lambda x: x[0]):
+            writer.add_scalar("benchmarking", gflops, time)
+
+    early_exit_layers = logging_dict["early_exit_layers"]
+    for time, layer in sorted(early_exit_layers, key=lambda x: x[0]):
+        writer.add_scalar("early_exit_layers", layer, time)
 
     for i, sample in enumerate(samples):
         writer.add_image(f"Sample {i + 1}", sample)

@@ -134,6 +134,8 @@ class EarlyExitUViT(nn.Module):
         x = x + self.uvit.pos_embed
 
         skips = []
+
+        early_exit_layer = 0
         for blk, classifier, output_head in zip(
             self.uvit.in_blocks, self.in_blocks_classifiers, self.in_blocks_heads
         ):
@@ -143,9 +145,10 @@ class EarlyExitUViT(nn.Module):
                 outputs.append(output_head(x))
             else:
                 if all(classifier_output < self.exit_threshold):
-                    return output_head(x), classifier_outputs
+                    return output_head(x), classifier_outputs, early_exit_layer
             x = blk(x)
             skips.append(x)
+            early_exit_layer += 1
 
         classifier_output = self.mid_block_classifier(x)
         classifier_outputs.append(classifier_output)
@@ -153,8 +156,9 @@ class EarlyExitUViT(nn.Module):
             outputs.append(self.mid_block_head(x))
         else:
             if all(classifier_output < self.exit_threshold):
-                return self.mid_block_head(x), classifier_outputs
+                return self.mid_block_head(x), classifier_outputs, early_exit_layer
         x = self.uvit.mid_block(x)
+        early_exit_layer += 1
 
         for blk, classifier, output_head in zip(
             self.uvit.out_blocks, self.out_blocks_classifiers, self.out_blocks_heads
@@ -165,8 +169,9 @@ class EarlyExitUViT(nn.Module):
                 outputs.append(output_head(x))
             else:
                 if all(classifier_output < self.exit_threshold):
-                    return output_head(x), classifier_outputs
+                    return output_head(x), classifier_outputs, early_exit_layer
             x = blk(x, skips.pop())
+            early_exit_layer += 1
 
         x = self.uvit.norm(x)
         x = self.uvit.decoder_pred(x)
@@ -176,7 +181,7 @@ class EarlyExitUViT(nn.Module):
         if self.training:
             return x, classifier_outputs, outputs
         else:
-            return x, classifier_outputs
+            return x, classifier_outputs, early_exit_layer
 
     @property
     def device(self):
