@@ -162,3 +162,5 @@ data/
 checkpoints/
 .DS_Store
 .ruff_cache/
+/samples/
+/logs/

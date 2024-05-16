@@ -153,13 +153,13 @@ if __name__ == "__main__":
 
     classifier_outputs = logging_dict["classifier_outputs"]
     for timestep, outputs_t in enumerate(classifier_outputs):
-        exit_layer = 13 if len(outputs_t) == 13 and outputs_t[-1] > args.exit_threshold else len(outputs_t)
+        exit_layer = 13 if len(outputs_t) == 13 and any([outputs_t_l[-1] > args.exit_threshold for outputs_t_l in outputs_t]) else len(outputs_t)
         writer.add_scalar("early_exit_layers", exit_layer, timestep)
         for layer in range(exit_layer):
-            writer.add_scalar(f"UEM Classifier output at layer {layer} wrt time", outputs_t[layer], timestep)
+            writer.add_scalar(f"UEM Classifier output at layer {layer} wrt time", outputs_t[layer].mean(), timestep)
         if timestep % 50 == 0:
             for layer in range(exit_layer):
-                writer.add_scalar(f"UEM Classifier output at timestep {timestep} wrt layer", outputs_t[layer], layer + 1)
+                writer.add_scalar(f"UEM Classifier output at timestep {timestep} wrt layer", outputs_t[layer].mean(), layer + 1)
 
     for i, sample in enumerate(samples):
         writer.add_image(f"Sample {i + 1}", sample)
