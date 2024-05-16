@@ -24,16 +24,6 @@ def get_device():
     return "cpu"
 
 
-device = get_device()
-print(f"Device: {device}")
-
-betas = torch.linspace(1e-4, 0.02, 1000).to(device)
-alphas = 1 - betas
-alphas_bar = torch.cumprod(alphas, dim=0)
-alphas_bar_previous = torch.cat([torch.tensor([1.0], device=device), alphas_bar[:-1]])
-betas_tilde = betas * (1 - alphas_bar_previous) / (1 - alphas_bar)
-
-
 def get_args():
     parser = argparse.ArgumentParser(description="Sampling parameters")
     # Default parameters from https://github.com/baofff/U-ViT/blob/main/configs/cifar10_uvit_small.py
@@ -119,6 +109,17 @@ if __name__ == "__main__":
     args = get_args()
     writer = SummaryWriter(args.log_path)
     seed_everything(args.seed)
+
+    device = get_device()
+    print(f"Device: {device}")
+
+    betas = torch.linspace(1e-4, 0.02, 1000).to(device)
+    alphas = 1 - betas
+    alphas_bar = torch.cumprod(alphas, dim=0)
+    alphas_bar_previous = torch.cat(
+        [torch.tensor([1.0], device=device), alphas_bar[:-1]]
+    )
+    betas_tilde = betas * (1 - alphas_bar_previous) / (1 - alphas_bar)
 
     uvit = UViT(
         img_size=32,
