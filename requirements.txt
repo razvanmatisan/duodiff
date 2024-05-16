@@ -12,3 +12,5 @@ diffusers
 accelerate
 tensorboard
 ptflops
+torchmetrics
+torch-fidelity
