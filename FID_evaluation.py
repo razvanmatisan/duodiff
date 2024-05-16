@@ -16,12 +16,16 @@ from utils.train_utils import (
     seed_everything,
 )
 
-if torch.cuda.is_available():
-    device = torch.device("cuda")
-elif torch.backends.mps.is_available():
-    device = torch.device("mps")
-else:
-    device = torch.device("cpu")
+
+def get_device():
+    if torch.cuda.is_available():
+        return "cuda:0"
+    try:
+        if torch.backends.mps.is_available():
+            return "mps"
+    except AttributeError:
+        pass
+    return "cpu"
 
 
 def get_args():
@@ -113,6 +117,7 @@ def save_cifar10_images(directory, num_images=10):
 
 def save_cifar10_sampled_images(directory):
     args = get_args()
+    device = get_device()
 
     uvit = UViT(
         img_size=32,
