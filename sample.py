@@ -10,19 +10,18 @@ from utils.train_utils import (
     seed_everything,
 )
 
-if torch.cuda.is_available():
-    device = torch.device("cuda")
-elif torch.backends.mps.is_available():
-    device = torch.device("mps")
-else:
-    device = torch.device("cpu")
-print(f"Device: {device}")
 
-betas = torch.linspace(1e-4, 0.02, 1000).to(device)
-alphas = 1 - betas
-alphas_bar = torch.cumprod(alphas, dim=0)
-alphas_bar_previous = torch.cat([torch.tensor([1.0], device=device), alphas_bar[:-1]])
-betas_tilde = betas * (1 - alphas_bar_previous) / (1 - alphas_bar)
+def get_device():
+    if torch.cuda.is_available():
+        return "cuda:0"
+
+    try:
+        if torch.backends.mps.is_available():
+            return "mps"
+    except AttributeError:
+        pass
+
+    return "cpu"
 
 
 def get_args():
@@ -110,6 +109,17 @@ if __name__ == "__main__":
     args = get_args()
     writer = SummaryWriter(args.log_path)
     seed_everything(args.seed)
+
+    device = get_device()
+    print(f"Device: {device}")
+
+    betas = torch.linspace(1e-4, 0.02, 1000).to(device)
+    alphas = 1 - betas
+    alphas_bar = torch.cumprod(alphas, dim=0)
+    alphas_bar_previous = torch.cat(
+        [torch.tensor([1.0], device=device), alphas_bar[:-1]]
+    )
+    betas_tilde = betas * (1 - alphas_bar_previous) / (1 - alphas_bar)
 
     uvit = UViT(
         img_size=32,

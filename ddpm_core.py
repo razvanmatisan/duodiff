@@ -146,7 +146,7 @@ class NoiseScheduler:
                 (num_samples, *data_shape), generator=generator, device=device
             )
             # Step 2: Iterate from num_steps down to 1
-            for t in tqdm(range(num_steps - 1, 0, -1), desc="Sampling Progress"):
+            for t in tqdm(range(num_steps - 1, -1, -1), desc="Sampling Progress"):
                 # Step 2.5: Calculate the noise
                 if model_type == "uvit":
                     t_normalized = t / num_steps
