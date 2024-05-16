@@ -10,12 +10,21 @@ from utils.train_utils import (
     seed_everything,
 )
 
-if torch.cuda.is_available():
-    device = torch.device("cuda")
-elif torch.backends.mps.is_available():
-    device = torch.device("mps")
-else:
-    device = torch.device("cpu")
+
+def get_device():
+    if torch.cuda.is_available():
+        return "cuda:0"
+
+    try:
+        if torch.backends.mps.is_available():
+            return "mps"
+    except AttributeError:
+        pass
+
+    return "cpu"
+
+
+device = get_device()
 print(f"Device: {device}")
 
 betas = torch.linspace(1e-4, 0.02, 1000).to(device)
@@ -153,13 +162,28 @@ if __name__ == "__main__":
 
     classifier_outputs = logging_dict["classifier_outputs"]
     for timestep, outputs_t in enumerate(classifier_outputs):
-        exit_layer = 13 if len(outputs_t) == 13 and any([outputs_t_l[-1] > args.exit_threshold for outputs_t_l in outputs_t]) else len(outputs_t)
+        exit_layer = (
+            13
+            if len(outputs_t) == 13
+            and any(
+                [outputs_t_l[-1] > args.exit_threshold for outputs_t_l in outputs_t]
+            )
+            else len(outputs_t)
+        )
         writer.add_scalar("early_exit_layers", exit_layer, timestep)
         for layer in range(exit_layer):
-            writer.add_scalar(f"UEM Classifier output at layer {layer} wrt time", outputs_t[layer].mean(), timestep)
+            writer.add_scalar(
+                f"UEM Classifier output at layer {layer} wrt time",
+                outputs_t[layer].mean(),
+                timestep,
+            )
         if timestep % 50 == 0:
             for layer in range(exit_layer):
-                writer.add_scalar(f"UEM Classifier output at timestep {timestep} wrt layer", outputs_t[layer].mean(), layer + 1)
+                writer.add_scalar(
+                    f"UEM Classifier output at timestep {timestep} wrt layer",
+                    outputs_t[layer].mean(),
+                    layer + 1,
+                )
 
     for i, sample in enumerate(samples):
         writer.add_image(f"Sample {i + 1}", sample)
