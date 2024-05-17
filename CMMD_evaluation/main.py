@@ -1,12 +1,20 @@
 import argparse
 import os
+import sys
 
+import distance
+import embedding
+import io_util
+import numpy as np
 import torch
+from absl import app, flags
 from PIL import Image
 from torchmetrics.image.fid import FrechetInceptionDistance
 from torchvision import transforms
 from torchvision.datasets import CIFAR10
 from torchvision.utils import save_image
+
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
 from datasets.cifar10 import get_cifar10_dataloader
 from models.early_exit import EarlyExitUViT
@@ -91,6 +99,21 @@ def get_args():
         help="True if we want to benchmark the sampler",
     )
 
+    # CMMD parameters
+    parser.add_argument(
+        "--cmmd_batch_size",
+        type=int,
+        default=32,
+        help="Batch size for embedding generation.",
+    )
+
+    parser.add_argument(
+        "--cmmd_max_count",
+        type=int,
+        default=5,
+        help="Maximum number of images to read from each directory.",
+    )
+
     return parser.parse_args()
 
 
@@ -101,19 +124,12 @@ def save_cifar10_images(directory):
 
     dataloader = get_cifar10_dataloader(batch_size=1, seed=0)
 
-    images = []
-
     for seed in range(args.start_seed, args.end_seed):
         x, _ = next(iter(dataloader))  # x.shape = [1, 3, 32, 32]
         # File path to save the image, e.g., 'original_data/0.png'
         filename = os.path.join(directory, f"{seed}.png")
         # Save image; 'save_image' expects a batch dimension, so use 'unsqueeze(0)'
         save_image(x, filename)
-
-        images.append(x)
-
-    images = torch.cat(images, dim=0)
-    return images
 
 
 def save_cifar10_sampled_images(directory):
@@ -146,7 +162,6 @@ def save_cifar10_sampled_images(directory):
 
     noise_scheduler = get_noise_scheduler(args)
 
-    samples = []
     os.makedirs(directory, exist_ok=True)
 
     for seed in range(args.start_seed, args.end_seed):
@@ -162,59 +177,61 @@ def save_cifar10_sampled_images(directory):
             benchmarking=args.benchmarking,
         )
 
-        # Keep sample
-        samples.append(sample)
-
         # File path to save the image, e.g., 'generated_data/0.png'
         filename = os.path.join(directory, f"{seed}.png")
         save_image(sample, filename)
 
-    samples = torch.cat(samples, dim=0)
-    return samples
 
+def compute_cmmd(ref_dir, eval_dir, ref_embed_file=None, batch_size=32, max_count=-1):
+    """Calculates the CMMD distance between reference and eval image sets.
 
-def fid_evaluation(real_images, generated_images):
-    fid = FrechetInceptionDistance(normalize=True)
-    fid.update(real_images, real=True)
-    fid.update(generated_images, real=False)
-    print(f"FID: {float(fid.compute())}")
+    Args:
+      ref_dir: Path to the directory containing reference images.
+      eval_dir: Path to the directory containing images to be evaluated.
+      ref_embed_file: Path to the pre-computed embedding file for the reference images.
+      batch_size: Batch size used in the CLIP embedding calculation.
+      max_count: Maximum number of images to use from each directory. A
+        non-positive value reads all images available except for the images
+        dropped due to batching.
 
-
-def read_from_folder(fdir):
-    transform = transforms.Compose([transforms.Resize((32, 32)), transforms.ToTensor()])
-
-    file_list = [f for f in os.listdir(fdir) if f.endswith(".png")]
-
-    # Load each image into a tensor and collect them into a list
-    tensor_list = []
-    for file_name in file_list:
-        img_path = os.path.join(fdir, file_name)
-        img = Image.open(img_path).convert("RGB")  # Ensure images are in RGB format
-        img_tensor = transform(img)
-        tensor_list.append(img_tensor)
-
-    # Stack the tensors into a single tensor along the first dimension
-    stacked_tensor = torch.stack(tensor_list, dim=0)
-    return stacked_tensor
+    Returns:
+      The CMMD value between the image sets.
+    """
+    if ref_dir and ref_embed_file:
+        raise ValueError(
+            "`ref_dir` and `ref_embed_file` both cannot be set at the same time."
+        )
+    embedding_model = embedding.ClipEmbeddingModel()
+    if ref_embed_file is not None:
+        ref_embs = np.load(ref_embed_file).astype("float32")
+    else:
+        ref_embs = io_util.compute_embeddings_for_dir(
+            ref_dir, embedding_model, batch_size, max_count
+        ).astype("float32")
+    eval_embs = io_util.compute_embeddings_for_dir(
+        eval_dir, embedding_model, batch_size, max_count
+    ).astype("float32")
+    val = distance.mmd(ref_embs, eval_embs)
+    return val.numpy()
 
 
 if __name__ == "__main__":
     args = get_args()
 
     # Directory for original images
-    output_dir_original = "Generated_samples/CIFAR10/original_data"
+    output_dir_original = "./Generated_samples/CIFAR10/original_data"
 
     # Directory for sampled images
-    output_dir_model = "Generated_samples/CIFAR10/generated_data"
+    output_dir_model = "./Generated_samples/CIFAR10/generated_data"
 
-    if args.load_from_folder:
-        real_images = read_from_folder(output_dir_original)
-        generated_images = read_from_folder(output_dir_model)
-    else:
-        real_images = save_cifar10_images(output_dir_original)
+    if args.load_from_folder == False:
+        save_cifar10_images(output_dir_original)
         print(f"All CIFAR10 images have been saved in '{output_dir_original}'.")
 
-        generated_images = save_cifar10_sampled_images(output_dir_model)
+        save_cifar10_sampled_images(output_dir_model)
         print(f"All CIFAR10 images have been saved in '{output_dir_original}'.")
 
-    fid_evaluation(real_images, generated_images)
+    print(
+        "The CMMD value is: "
+        f" {compute_cmmd(output_dir_original, output_dir_model, batch_size=args.cmmd_batch_size, max_count=args.cmmd_max_count):.3f}"
+    )
