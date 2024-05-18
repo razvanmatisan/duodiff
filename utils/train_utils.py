@@ -39,7 +39,13 @@ def get_model(args):
             mlp_time_embed=args.mlp_time_embed,
             num_classes=args.num_classes,
         )
-
+        
+        # Just trying, I'm not commiting this yet
+        # checkpoint = torch.load("logs/6218182/cifar10_uvit.pth", map_location="cpu")
+        # model.load_state_dict(checkpoint["model_state_dict"])
+        # for parameter in model.parameters():
+        #     parameter.requires_grad = False
+        
         return EarlyExitUViT(model)
 
 

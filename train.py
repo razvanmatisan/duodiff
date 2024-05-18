@@ -248,10 +248,16 @@ def loss_fn(model, batch, noise_scheduler, device, args):
         # L_UAL_t
         L_n_t = torch.stack([(output - noise) ** 2 for output in outputs], dim=0)
         L_n_t = L_n_t.mean(dim=(-1, -2, -3))
-        L_UAL_t = ((1 - classifier_outputs) * L_n_t).mean(dim=1).sum(dim=0)
+
+        # Trying u_t_hats, that is actually from 0 to 1 (classifier outputs is not!)
+        L_UAL_t = ((1 - u_t_hats) * L_n_t).mean(dim=1).sum(dim=0)
+
+        # New madeup loss
+        # TODO: maybe weight with 1 - 1/l or something like that
+        new_loss = L_n_t.mean(dim=1).sum(dim=0)
 
         # Total loss
-        loss = L_simple, L_u_t, L_UAL_t
+        loss = L_simple, L_u_t, L_UAL_t, new_loss
 
     return loss
 
@@ -287,11 +293,12 @@ def train(
 
         loss = loss_fn(model, batch, noise_scheduler, device, args)
         if isinstance(loss, tuple):
-            regular_loss, classifier_loss, weighted_loss = loss
+            regular_loss, classifier_loss, weighted_loss, new_loss = loss
             writer.add_scalar("Regular train loss", regular_loss.item(), step)
             writer.add_scalar("Classifier train loss", classifier_loss.item(), step)
             writer.add_scalar("Weighted train loss", weighted_loss.item(), step)
-            loss = regular_loss + classifier_loss + weighted_loss
+            writer.add_scalar("New loss", new_loss.item(), step)
+            loss = regular_loss + classifier_loss + weighted_loss + new_loss
         else:
             writer.add_scalar("Train loss", loss.item(), step)
 
