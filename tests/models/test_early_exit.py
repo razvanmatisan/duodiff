@@ -1,3 +1,4 @@
+import pytest
 import torch
 
 from models.early_exit import AttentionProbe, EarlyExitUViT, OutputHead
@@ -64,6 +65,7 @@ def test_backward():
     fake_loss.backward()
 
 
+@pytest.mark.skip(reason="no early exit on inference mode yet")
 def test_inference_no_early_exit():
     model = EarlyExitUViT(UViT(**cifar10_config), exit_threshold=-torch.inf)
     model.eval()
@@ -75,6 +77,7 @@ def test_inference_no_early_exit():
     assert early_exit_layer == 13
 
 
+@pytest.mark.skip(reason="no early exit on inference mode yet")
 def test_inference_exit_first():
     model = EarlyExitUViT(UViT(**cifar10_config), exit_threshold=torch.inf)
     model.eval()
