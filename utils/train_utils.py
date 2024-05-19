@@ -39,13 +39,13 @@ def get_model(args):
             mlp_time_embed=args.mlp_time_embed,
             num_classes=args.num_classes,
         )
-        
-        # Just trying, I'm not commiting this yet
-        # checkpoint = torch.load("logs/6218182/cifar10_uvit.pth", map_location="cpu")
-        # model.load_state_dict(checkpoint["model_state_dict"])
-        # for parameter in model.parameters():
-        #     parameter.requires_grad = False
-        
+
+        if args.load_backbone:
+            checkpoint = torch.load(args.load_backbone, map_location="cpu")
+            model.load_state_dict(checkpoint)
+            for param in model.parameters():
+                param.requires_grad = False
+
         return EarlyExitUViT(model)
 
 
@@ -67,7 +67,7 @@ def get_dataloader(args):
 
 
 def get_noise_scheduler(args):
-    return NoiseScheduler(beta_steps=args.num_train_timesteps)
+    return NoiseScheduler(beta_steps=args.num_timesteps)
 
 
 def get_lr_scheduler(optimizer, args, last_epoch=-1):

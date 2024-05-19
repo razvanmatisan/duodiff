@@ -1,5 +1,9 @@
+from collections import defaultdict
+
 import torch
 from tqdm import tqdm
+
+from benchmark import get_gflops
 
 
 def early_exit(lambda_threshold, model_output, earliest_exit_index, verbose=False):
@@ -108,7 +112,10 @@ class NoiseScheduler:
         data_shape,
         num_samples,
         seed,
-        model_type="perceiver",
+        model_type,
+        keep_initial_timesteps,
+        benchmarking=False,
+        train_mode=False,
         time_frequency=None,
         space_frequency=None,
         coordinates=None,
@@ -129,6 +136,7 @@ class NoiseScheduler:
         Returns:
         Tensor: Batch of generated samples.
         """
+        logging_dict = defaultdict(list)
         # Get the device from the model
         device = next(model.parameters()).device
         generator = torch.Generator(device=device).manual_seed(seed)
@@ -140,22 +148,44 @@ class NoiseScheduler:
                 (num_samples, *data_shape), generator=generator, device=device
             )
             # Step 2: Iterate from num_steps down to 1
-            for t in tqdm(range(num_steps - 1, 0, -1), desc="Sampling Progress"):
+            for t in tqdm(range(num_steps - 1, -1, -1), desc="Sampling Progress"):
                 # Step 2.5: Calculate the noise
-                if model_type == "huggingface":
-                    eps = model(x_t, t, return_dict=False)[0]
-                elif model_type == "uvit":
-                    t_normalized = t / num_steps
-                    time_tensor = torch.tensor([t_normalized], device=device).repeat(
-                        num_samples
-                    )
+                if model_type == "uvit":
+                    if keep_initial_timesteps:
+                        time_tensor = torch.tensor([t], device=device).repeat(
+                            num_samples
+                        )
+                    else:
+                        time_tensor = torch.tensor(
+                            [t / num_steps], device=device
+                        ).repeat(num_samples)
+
                     eps = model(x_t, time_tensor)
                 elif model_type == "deediff_uvit":
-                    t_normalized = t / num_steps
-                    time_tensor = torch.tensor([t_normalized], device=device).repeat(
-                        num_samples
-                    )
-                    eps = model(x_t, time_tensor)[0]
+                    if train_mode:
+                        model.train()
+                    if keep_initial_timesteps:
+                        time_tensor = torch.tensor([t], device=device).repeat(
+                            num_samples
+                        )
+                    else:
+                        time_tensor = torch.tensor(
+                            [t / num_steps], device=device
+                        ).repeat(num_samples)
+
+                    model_output = model(x_t, time_tensor)
+                    eps = model_output[0]
+                    logging_dict["classifier_outputs"].append(model_output[1])
+
+                    if not model.training:
+                        logging_dict["early_exit_layers"].append((t, model_output[2]))
+                    else:
+                        logging_dict["outputs"].append(model_output[2])
+
+                # [Optional] Step 2.6: Benchmarking
+                if benchmarking:
+                    gflops = get_gflops(model, x_t, time_tensor)
+                    logging_dict["benchmarking"].append((t, gflops))
 
                 # Step 3: Sample z from N(0, I) if t > 1, else z = 0
                 z = (
@@ -179,16 +209,33 @@ class NoiseScheduler:
                     self.sigma_squared()[t : t + 1], x_t.shape
                 ).to(device)
                 sigma_t = torch.sqrt(sigma_squared_t)
+
+                lmbd = 0 if t == 0 else 1
                 x_t_minus_1 = (
                     torch.sqrt(1 / alpha_t)
                     * (x_t - (1 - alpha_t) / (torch.sqrt(1 - alpha_bar_t)) * eps)
-                ) + sigma_t * z
+                ) + lmbd * sigma_t * z
+
+                if model.training:
+                    denoised_images = []
+                    for noise in logging_dict["outputs"][-1]:
+                        denoised_image = (
+                            torch.sqrt(1 / alpha_t)
+                            * (
+                                x_t
+                                - (1 - alpha_t) / (torch.sqrt(1 - alpha_bar_t)) * noise
+                            )
+                        ) + lmbd * sigma_t * z
+
+                        denoised_images.append(denoised_image)
+                    logging_dict["denoised_images"].append(denoised_images)
                 # Update x_t for the next iteration
                 x_t = x_t_minus_1
+                logging_dict["samples_over_time"].append(x_t)
             # Step 6: Return the batch of generated samples
 
             model.train()
-            return x_t
+            return x_t, logging_dict
 
     def early_exit_sample(
         self,
@@ -223,7 +270,7 @@ class NoiseScheduler:
             # Step 1: Generate the initial batch of samples
             x_t = torch.randn((num_samples, *data_shape)).to(device)
             # Step 2: Iterate from num_steps down to 1
-            for t in tqdm(range(num_steps - 1, 0, -1), desc="Sampling Progress"):
+            for t in tqdm(range(num_steps - 1, -1, -1), desc="Sampling Progress"):
                 # Step 2.5: Calculate the noise
                 if model_type == "huggingface":
                     eps = model(x_t, t, return_dict=False)[0]

@@ -10,6 +10,7 @@ import torch.nn.functional as F
 import torchvision
 from accelerate import Accelerator
 from torch.utils.tensorboard import SummaryWriter
+from tqdm import tqdm
 
 from utils.train_utils import (
     InfiniteDataloaderIterator,
@@ -31,7 +32,7 @@ def get_args():
     parser.add_argument("--n_steps", type=int, required=True, help="Number of steps")
     parser.add_argument("--batch_size", type=int, default=128, help="Number of steps")
     parser.add_argument(
-        "--num_train_timesteps", type=int, default=1000, help="Number of timesteps"
+        "--num_timesteps", type=int, default=1000, help="Number of timesteps"
     )
     parser.add_argument("--use_amp", action="store_true", default=False, help="Use AMP")
     parser.add_argument("--amp_dtype", type=str, default="bf16", help="AMP data type")
@@ -78,6 +79,18 @@ def get_args():
         default=None,
         help="Checkpoint path for loading the training state",
     )
+    parser.add_argument(
+        "--load_backbone",
+        type=str,
+        default=None,
+        help="Checkpoint to a pretrained UViT backbone",
+    )
+    parser.add_argument(
+        "--keep_initial_timesteps",
+        action="store_true",
+        help="Using timesteps in [0, T] if True. Otherwise, normalize the timesteps in [0, 1]",
+    )
+
     parser.add_argument(
         "--save_checkpoint_path",
         type=str,
@@ -218,18 +231,19 @@ def loss_fn(model, batch, noise_scheduler, device, args):
     clean_images = data
 
     timesteps = torch.randint(
-        0, args.num_train_timesteps, (batch_size,), device=device
+        0, args.num_timesteps, (batch_size,), device=device
     ).long()
-    timesteps_normalized = timesteps.float() / args.num_train_timesteps
+
     noise, noisy_images = noise_scheduler.add_noise(clean_images, timesteps)
 
+    if not args.keep_initial_timesteps:
+        timesteps = timesteps.float() / args.num_timesteps
+
     if args.model == "uvit":
-        predicted_noise = model(noisy_images, timesteps_normalized)
+        predicted_noise = model(noisy_images, timesteps)
         loss = F.mse_loss(predicted_noise, noise)
     elif args.model == "deediff_uvit":
-        predicted_noise, classifier_outputs, outputs = model(
-            noisy_images, timesteps_normalized
-        )
+        predicted_noise, classifier_outputs, outputs = model(noisy_images, timesteps)
 
         # Reshape list of L elements of shape (bs, C, H, W) into tensor of shape (L, bs, C, H, W)
         classifier_outputs = torch.stack(classifier_outputs, dim=0)
@@ -286,7 +300,7 @@ def train(
     log_times = []
     save_times = []
     step_times = []
-    for step in range(finished_steps + 1, args.n_steps + 1):
+    for step in tqdm(range(finished_steps + 1, args.n_steps + 1), desc="Training"):
         tic = time.time()
         step_tic = time.time()
         batch = next(dataloader_iterator)
@@ -316,13 +330,14 @@ def train(
         ):
             log_tic = time.time()
             print(f"step {step}: train loss = {loss.item()}")
-            samples = noise_scheduler.sample(
+            samples, logging_dict = noise_scheduler.sample(
                 model=model,
-                num_steps=args.num_train_timesteps,
+                num_steps=args.num_timesteps,
                 data_shape=(3, args.sample_height, args.sample_width),
                 num_samples=args.n_samples,
                 seed=args.sample_seed,
                 model_type=args.model,
+                keep_initial_timesteps=args.keep_initial_timesteps,
             )
             img_grid = (
                 torchvision.utils.make_grid(
@@ -384,6 +399,7 @@ if __name__ == "__main__":
 
     accelerator = Accelerator(mixed_precision=args.amp_dtype)
     device = accelerator.device
+    print(f"Training on {device}")
     model, optimizer, trainloader, lr_scheduler = accelerator.prepare(
         model, optimizer, train_dataloader, lr_scheduler
     )

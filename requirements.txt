@@ -11,3 +11,12 @@ matplotlib
 diffusers
 accelerate
 tensorboard
+ptflops
+torchmetrics
+torch-fidelity
+transformers
+accelerate
+Pillow
+tqdm
+numpy
+absl-py
