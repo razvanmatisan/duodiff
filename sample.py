@@ -79,6 +79,12 @@ def get_args():
         help="Checkpoint path for loading the training state",
     )
 
+    parser.add_argument(
+        "--keep_initial_timesteps",
+        action="store_true",
+        help="Using timesteps in [0, T] if True. Otherwise, normalize the timesteps in [0, 1]",
+    )
+
     # Model
     parser.add_argument(
         "--model",
@@ -100,6 +106,13 @@ def get_args():
         "--benchmarking",
         action="store_true",
         help="True if we want to benchmark the sampler",
+    )
+
+    # Train mode
+    parser.add_argument(
+        "--train_mode",
+        action="store_true",
+        help="True if we run the model in train mode",
     )
 
     return parser.parse_args()
@@ -147,6 +160,9 @@ if __name__ == "__main__":
 
     noise_scheduler = get_noise_scheduler(args)
 
+    mode = "train_mode" if args.train_mode else "inference_mode"
+    print(f"Sampling in {mode}...")
+    ### Sampling
     samples, logging_dict = noise_scheduler.sample(
         model=model,
         num_steps=args.num_timesteps,
@@ -155,13 +171,36 @@ if __name__ == "__main__":
         seed=args.sample_seed,
         model_type=args.model,
         benchmarking=args.benchmarking,
+        train_mode=args.train_mode,
+        keep_initial_timesteps=args.keep_initial_timesteps,
     )
 
+    ### Logging
+    ## Denoised images
+    if model.training:
+        ### Denoised images (using each of the noise outputed by each of the 13 layers)
+        print("Logging denoised images...")
+        all_denoised_images = logging_dict["denoised_images"]
+
+        for t, denoised_images_t in enumerate(all_denoised_images):
+            if (t + 1) % 50 == 0:
+                for i, batch in enumerate(denoised_images_t):
+                    for k, img in enumerate(batch):
+                        writer.add_image(
+                            f"Sample {k}: Denoised images at timestep {t}",
+                            img,
+                            global_step=i,
+                        )
+
+    ## Benchmarking (Theoretical GFlops)
     if args.benchmarking:
+        print("Logging benchmark...")
         for time, gflops in sorted(logging_dict["benchmarking"], key=lambda x: x[0]):
             writer.add_scalar("benchmarking", gflops, time)
 
+    ## UEM classifier outputs per timestep wrt layer
     classifier_outputs = logging_dict["classifier_outputs"]
+    print("Logging classifier outputs...")
     for timestep, outputs_t in enumerate(classifier_outputs):
         # if len(outputs_t) == 13:
         #     try:
@@ -173,14 +212,33 @@ if __name__ == "__main__":
         #         pass
         # else:
         #     exit_layer = len(outputs_t)
-
-        exit_layer = 13 if len(outputs_t) == 13 and torch.any(outputs_t[-1] > args.exit_threshold) else len(outputs_t)
+        exit_layer = (
+            13
+            if len(outputs_t) == 13 and torch.any(outputs_t[-1] > args.exit_threshold)
+            else len(outputs_t)
+        )
         writer.add_scalar("early_exit_layers", exit_layer, timestep)
         for layer in range(exit_layer):
-            writer.add_scalar(f"UEM Classifier output at layer {layer} wrt time", outputs_t[layer].mean(), timestep)
+            writer.add_scalar(
+                f"UEM Classifier output at layer {layer} wrt time",
+                outputs_t[layer].mean(),
+                timestep,
+            )
         if timestep % 50 == 0:
             for layer in range(exit_layer):
-                writer.add_scalar(f"UEM Classifier output at timestep {timestep} wrt layer", outputs_t[layer].mean(), layer + 1)
+                writer.add_scalar(
+                    f"UEM Classifier output at timestep {timestep} wrt layer",
+                    outputs_t[layer].mean(),
+                    layer + 1,
+                )
 
-    for i, sample in enumerate(samples):
-        writer.add_image(f"Sample {i + 1}", sample)
+    ## Denoising over time
+    samples_over_time = logging_dict["samples_over_time"]
+    print("Logging samples over time...")
+    for t, samples in enumerate(samples_over_time):
+        for i, sample in enumerate(samples):
+            writer.add_image(
+                f"Sample {i} over time using threshold {args.exit_threshold}",
+                sample,
+                global_step=t,
+            )

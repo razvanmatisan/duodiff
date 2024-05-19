@@ -40,6 +40,12 @@ def get_model(args):
             num_classes=args.num_classes,
         )
 
+        if args.load_backbone:
+            checkpoint = torch.load(args.load_backbone, map_location="cpu")
+            model.load_state_dict(checkpoint)
+            for param in model.parameters():
+                param.requires_grad = False
+
         return EarlyExitUViT(model)
 
 
