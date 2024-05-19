@@ -139,6 +139,14 @@ def get_args():
         choices=["uvit", "deediff_uvit"],
         help="Model name",
     )
+    parser.add_argument(
+        "--classifier_type",
+        type=str,
+        default="attention_probe",
+        choices=["attention_probe", "mlp_probe"],
+        help="Classification head",
+    )
+
     parser.add_argument("--img_size", type=int, default=32, help="Image size")
     parser.add_argument("--patch_size", type=int, default=2, help="Patch size")
     parser.add_argument("--embed_dim", type=int, default=512, help="Embed dim")
@@ -245,8 +253,9 @@ def loss_fn(model, batch, noise_scheduler, device, args):
     elif args.model == "deediff_uvit":
         predicted_noise, classifier_outputs, outputs = model(noisy_images, timesteps)
 
-        # Reshape list of L elements of shape (bs, C, H, W) into tensor of shape (L, bs, C, H, W)
+        # Reshape list of L elements of shape (bs,) into tensor of shape (L, bs)
         classifier_outputs = torch.stack(classifier_outputs, dim=0)
+        # Reshape list of L elements of shape (bs, C, H, W) into tensor of shape (L, bs, C, H, W)
         outputs = torch.stack(outputs, dim=0)
 
         # L_simple

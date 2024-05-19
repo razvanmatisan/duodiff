@@ -40,13 +40,15 @@ def get_model(args):
             num_classes=args.num_classes,
         )
 
+        print(f"Initializing EarlyExitUViT with {args.classifier_type}")
+
         if args.load_backbone:
             checkpoint = torch.load(args.load_backbone, map_location="cpu")
             model.load_state_dict(checkpoint)
             for param in model.parameters():
                 param.requires_grad = False
 
-        return EarlyExitUViT(model)
+        return EarlyExitUViT(model, classifier_type=args.classifier_type)
 
 
 def get_optimizer(model, args):

@@ -254,7 +254,7 @@ class UViT(nn.Module):
         self.patch_embed = PatchEmbed(
             patch_size=patch_size, in_chans=in_chans, embed_dim=embed_dim
         )
-        num_patches = (img_size // patch_size) ** 2
+        self.num_patches = (img_size // patch_size) ** 2
 
         self.time_embed = (
             nn.Sequential(
@@ -273,7 +273,7 @@ class UViT(nn.Module):
             self.extras = 1
 
         self.pos_embed = nn.Parameter(
-            torch.zeros(1, self.extras + num_patches, embed_dim)
+            torch.zeros(1, self.extras + self.num_patches, embed_dim)
         )
 
         self.in_blocks = nn.ModuleList(

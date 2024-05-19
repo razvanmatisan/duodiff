@@ -101,6 +101,14 @@ def get_args():
         help="Early exit threshold",
     )
 
+    parser.add_argument(
+        "--classifier_type",
+        type=str,
+        default="attention_probe",
+        choices=["attention_probe", "mlp_probe"],
+        help="Classification head",
+    )
+
     # Benchmarking
     parser.add_argument(
         "--benchmarking",
@@ -146,7 +154,11 @@ if __name__ == "__main__":
         num_classes=-1,
     )
 
-    model = EarlyExitUViT(uvit=uvit, exit_threshold=args.exit_threshold)
+    model = EarlyExitUViT(
+        uvit=uvit,
+        classifier_type=args.classifier_type,
+        exit_threshold=args.exit_threshold,
+    )
 
     if args.load_checkpoint_path:
         state_dict = torch.load(args.load_checkpoint_path, device)

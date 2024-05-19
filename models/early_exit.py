@@ -28,6 +28,18 @@ class OutputHead(nn.Module):
         return x
 
 
+class MlpProbe(nn.Module):
+    def __init__(self, seq_length):
+        super(MlpProbe, self).__init__()
+        self.classifier = nn.Sequential(nn.Linear(seq_length, 1), nn.Sigmoid())
+
+    def forward(self, x):
+        x = x.mean(dim=-1)
+        x = self.classifier(x).squeeze()
+
+        return x
+
+
 class AttentionProbe(nn.Module):
     """
     TODO: come up with a more efficient classifier!
@@ -72,7 +84,9 @@ class AttentionProbe(nn.Module):
 
 
 class EarlyExitUViT(nn.Module):
-    def __init__(self, uvit: UViT, exit_threshold=0.2):
+    def __init__(
+        self, uvit: UViT, classifier_type="attention_probe", exit_threshold=0.2
+    ):
         super().__init__()
 
         self.uvit = uvit
@@ -82,13 +96,26 @@ class EarlyExitUViT(nn.Module):
         self.in_blocks_classifiers = nn.ModuleList(
             [
                 AttentionProbe(embed_dim=uvit.embed_dim)
-                for _ in range(len(uvit.in_blocks))
+                if classifier_type == "attention_probe"
+                else MlpProbe(
+                    seq_length=1 + uvit.num_patches
+                )  # time + number of patches
+                for _ in range(len(uvit.out_blocks))
             ]
         )
-        self.mid_block_classifier = AttentionProbe(embed_dim=uvit.embed_dim)
+        self.mid_block_classifier = (
+            AttentionProbe(embed_dim=uvit.embed_dim)
+            if classifier_type == "attention_probe"
+            else MlpProbe(seq_length=1 + uvit.num_patches)
+        )  # time + number of patches
+
         self.out_blocks_classifiers = nn.ModuleList(
             [
                 AttentionProbe(embed_dim=uvit.embed_dim)
+                if classifier_type == "attention_probe"
+                else MlpProbe(
+                    seq_length=1 + uvit.num_patches
+                )  # time + number of patches
                 for _ in range(len(uvit.out_blocks))
             ]
         )
