@@ -190,7 +190,7 @@ class NoiseScheduler:
                 # Step 3: Sample z from N(0, I) if t > 1, else z = 0
                 z = (
                     torch.randn(x_t.size(), generator=generator, device=device)
-                    if t > 1
+                    if t > 0
                     else torch.zeros_like(x_t)
                 )
 
@@ -210,11 +210,10 @@ class NoiseScheduler:
                 ).to(device)
                 sigma_t = torch.sqrt(sigma_squared_t)
 
-                lmbd = 0 if t == 0 else 1
                 x_t_minus_1 = (
                     torch.sqrt(1 / alpha_t)
                     * (x_t - (1 - alpha_t) / (torch.sqrt(1 - alpha_bar_t)) * eps)
-                ) + lmbd * sigma_t * z
+                ) + sigma_t * z
 
                 if model.training:
                     denoised_images = []
@@ -225,7 +224,7 @@ class NoiseScheduler:
                                 x_t
                                 - (1 - alpha_t) / (torch.sqrt(1 - alpha_bar_t)) * noise
                             )
-                        ) + lmbd * sigma_t * z
+                        ) + sigma_t * z
 
                         denoised_images.append(denoised_image)
                     logging_dict["denoised_images"].append(denoised_images)
