@@ -45,8 +45,10 @@ def get_model(args):
         if args.load_backbone:
             checkpoint = torch.load(args.load_backbone, map_location="cpu")
             model.load_state_dict(checkpoint)
-            for param in model.parameters():
-                param.requires_grad = False
+
+            if args.freeze_backbone:
+                for param in model.parameters():
+                    param.requires_grad = False
 
         return EarlyExitUViT(model, classifier_type=args.classifier_type)
 

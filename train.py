@@ -85,6 +85,7 @@ def get_args():
         default=None,
         help="Checkpoint to a pretrained UViT backbone",
     )
+    parser.add_argument("--freeze_backbone", type=bool, action="store_true")
     parser.add_argument(
         "--keep_initial_timesteps",
         action="store_true",
