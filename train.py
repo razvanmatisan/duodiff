@@ -91,6 +91,7 @@ def get_args():
         action="store_true",
         help="If true, normalize the timesteps in [0, 1] from [0, 1000]",
     )
+    parser.add_argument("--use_unweighted_loss", type=bool, action="store_true")
 
     parser.add_argument(
         "--save_checkpoint_path",
@@ -319,12 +320,15 @@ def train(
 
         loss = loss_fn(model, batch, noise_scheduler, device, args)
         if isinstance(loss, tuple):
-            regular_loss, classifier_loss, weighted_loss, new_loss = loss
+            regular_loss, classifier_loss, weighted_loss, unweighted_loss = loss
             writer.add_scalar("Regular train loss", regular_loss.item(), step)
             writer.add_scalar("Classifier train loss", classifier_loss.item(), step)
             writer.add_scalar("Weighted train loss", weighted_loss.item(), step)
-            writer.add_scalar("New loss", new_loss.item(), step)
-            loss = regular_loss + classifier_loss + weighted_loss + new_loss
+            writer.add_scalar("Unweighted loss", unweighted_loss.item(), step)
+
+            loss = regular_loss + classifier_loss + weighted_loss
+            if args.use_unweighted_loss:
+                loss += unweighted_loss
         else:
             writer.add_scalar("Train loss", loss.item(), step)
 
