@@ -1,7 +1,7 @@
 import pytest
 import torch
 
-from models.early_exit import AttentionProbe, EarlyExitUViT, MlpProbe, OutputHead
+from models.early_exit import AttentionProbe, EarlyExitUViT, MLPProbe, OutputHead
 from models.uvit import UViT
 
 celeba_config = dict(
@@ -54,8 +54,8 @@ def test_attention_probe():
     assert y.shape == (16,)
 
 
-def test_linear_probe():
-    linear_probe = MlpProbe(seq_length=257)
+def test_mlp_probe():
+    linear_probe = MLPProbe(embed_dim=512)
 
     x = torch.zeros((16, 257, 512))
     y = linear_probe(x)

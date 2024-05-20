@@ -28,16 +28,13 @@ class OutputHead(nn.Module):
         return x
 
 
-class MlpProbe(nn.Module):
-    def __init__(self, seq_length):
-        super(MlpProbe, self).__init__()
-        self.classifier = nn.Sequential(nn.Linear(seq_length, 1), nn.Sigmoid())
+class MLPProbe(nn.Module):
+    def __init__(self, embed_dim):
+        super(MLPProbe, self).__init__()
+        self.classifier = nn.Sequential(nn.Linear(embed_dim, 1), nn.Sigmoid())
 
     def forward(self, x):
-        x = x.mean(dim=-1)
-        x = self.classifier(x).squeeze()
-
-        return x
+        return self.classifier(x).mean(dim=1).squeeze()
 
 
 class AttentionProbe(nn.Module):
@@ -97,25 +94,21 @@ class EarlyExitUViT(nn.Module):
             [
                 AttentionProbe(embed_dim=uvit.embed_dim)
                 if classifier_type == "attention_probe"
-                else MlpProbe(
-                    seq_length=1 + uvit.num_patches
-                )  # time + number of patches
+                else MLPProbe(embed_dim=self.uvit.embed_dim)
                 for _ in range(len(uvit.out_blocks))
             ]
         )
         self.mid_block_classifier = (
             AttentionProbe(embed_dim=uvit.embed_dim)
             if classifier_type == "attention_probe"
-            else MlpProbe(seq_length=1 + uvit.num_patches)
-        )  # time + number of patches
+            else MLPProbe(embed_dim=self.uvit.embed_dim)
+        )
 
         self.out_blocks_classifiers = nn.ModuleList(
             [
                 AttentionProbe(embed_dim=uvit.embed_dim)
                 if classifier_type == "attention_probe"
-                else MlpProbe(
-                    seq_length=1 + uvit.num_patches
-                )  # time + number of patches
+                else MLPProbe(embed_dim=self.uvit.embed_dim)
                 for _ in range(len(uvit.out_blocks))
             ]
         )
