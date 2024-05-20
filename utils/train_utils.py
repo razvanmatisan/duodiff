@@ -46,7 +46,10 @@ def get_model(args):
 
         if args.load_backbone:
             checkpoint = torch.load(args.load_backbone, map_location="cpu")
-            model.load_state_dict(checkpoint)
+            if "model_state_dict" in checkpoint:
+                model.load_state_dict(checkpoint["model_state_dict"])
+            else:
+                model.load_state_dict(checkpoint)
 
             if args.freeze_backbone:
                 for param in model.parameters():
