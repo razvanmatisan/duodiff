@@ -346,7 +346,7 @@ class UViT(nn.Module):
 
     def forward(self, x, timesteps, y=None):
         if self.normalize_timesteps:
-            timesteps = timesteps.astype(float) / 1000
+            timesteps = timesteps.float() / 1000
 
         x = self.patch_embed(x)
         B, L, D = x.shape
