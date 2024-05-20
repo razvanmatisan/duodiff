@@ -113,7 +113,6 @@ class NoiseScheduler:
         num_samples,
         seed,
         model_type,
-        keep_initial_timesteps,
         benchmarking=False,
         train_mode=False,
         time_frequency=None,
@@ -151,27 +150,13 @@ class NoiseScheduler:
             for t in tqdm(range(num_steps - 1, -1, -1), desc="Sampling Progress"):
                 # Step 2.5: Calculate the noise
                 if model_type == "uvit":
-                    if keep_initial_timesteps:
-                        time_tensor = torch.tensor([t], device=device).repeat(
-                            num_samples
-                        )
-                    else:
-                        time_tensor = torch.tensor(
-                            [t / num_steps], device=device
-                        ).repeat(num_samples)
+                    time_tensor = torch.tensor([t], device=device).repeat(num_samples)
 
                     eps = model(x_t, time_tensor)
                 elif model_type == "deediff_uvit":
                     if train_mode:
                         model.train()
-                    if keep_initial_timesteps:
-                        time_tensor = torch.tensor([t], device=device).repeat(
-                            num_samples
-                        )
-                    else:
-                        time_tensor = torch.tensor(
-                            [t / num_steps], device=device
-                        ).repeat(num_samples)
+                    time_tensor = torch.tensor([t], device=device).repeat(num_samples)
 
                     model_output = model(x_t, time_tensor)
                     eps = model_output[0]

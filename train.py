@@ -87,9 +87,9 @@ def get_args():
     )
     parser.add_argument("--freeze_backbone", type=bool, action="store_true")
     parser.add_argument(
-        "--keep_initial_timesteps",
+        "--normalize_timesteps",
         action="store_true",
-        help="Using timesteps in [0, T] if True. Otherwise, normalize the timesteps in [0, 1]",
+        help="If true, normalize the timesteps in [0, 1] from [0, 1000]",
     )
 
     parser.add_argument(
@@ -144,7 +144,12 @@ def get_args():
         "--classifier_type",
         type=str,
         default="attention_probe",
-        choices=["attention_probe", "mlp_probe"],
+        choices=[
+            "attention_probe",
+            "mlp_probe_per_layer",
+            "mlp_probe_per_timestep",
+            "mlp_probe_per_layer_per_timestep",
+        ],
         help="Classification head",
     )
 
@@ -245,9 +250,6 @@ def loss_fn(model, batch, noise_scheduler, device, args):
 
     noise, noisy_images = noise_scheduler.add_noise(clean_images, timesteps)
 
-    if not args.keep_initial_timesteps:
-        timesteps = timesteps.float() / args.num_timesteps
-
     if args.model == "uvit":
         predicted_noise = model(noisy_images, timesteps)
         loss = F.mse_loss(predicted_noise, noise)
@@ -347,7 +349,6 @@ def train(
                 num_samples=args.n_samples,
                 seed=args.sample_seed,
                 model_type=args.model,
-                keep_initial_timesteps=args.keep_initial_timesteps,
             )
             img_grid = (
                 torchvision.utils.make_grid(

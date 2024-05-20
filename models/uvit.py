@@ -243,11 +243,13 @@ class UViT(nn.Module):
         use_checkpoint=False,
         conv=True,
         skip=True,
+        normalize_timesteps=True,
     ):
         super().__init__()
         self.num_features = self.embed_dim = (
             embed_dim  # num_features for consistency with other models
         )
+        self.normalize_timesteps = normalize_timesteps
         self.num_classes = num_classes
         self.in_chans = in_chans
 
@@ -343,6 +345,9 @@ class UViT(nn.Module):
         return {"pos_embed"}
 
     def forward(self, x, timesteps, y=None):
+        if self.normalize_timesteps:
+            timesteps = timesteps.astype(float) / 1000
+
         x = self.patch_embed(x)
         B, L, D = x.shape
 

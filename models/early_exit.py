@@ -81,6 +81,18 @@ class AttentionProbe(nn.Module):
 
 
 class EarlyExitUViT(nn.Module):
+    def get_classifer(self, t, i) -> nn.Module:
+        if self.classifier_type == "attention_probe":
+            return self.matrix[f"{i}"]
+        elif self.classifier_type == "mlp_probe_per_layer":
+            return self.matrix[f"{i}"]
+        elif self.classifier_type == "mlp_probe_per_timestep":
+            return self.matrix[f"{t}"]
+        elif self.classifier_type == "mlp_probe_per_layer_per_timestep":
+            return self.matrix[f"{i}, {t}"]
+        else:
+            ValueError(f"Unknown classifier type: {self.classifier_type}")
+
     def __init__(
         self, uvit: UViT, classifier_type="attention_probe", exit_threshold=0.2
     ):
@@ -88,30 +100,30 @@ class EarlyExitUViT(nn.Module):
 
         self.uvit = uvit
         self.exit_threshold = exit_threshold
+        self.classifier_type = classifier_type
 
-        # Add classifiers (they tell us if we should exit)
-        self.in_blocks_classifiers = nn.ModuleList(
-            [
-                AttentionProbe(embed_dim=uvit.embed_dim)
-                if classifier_type == "attention_probe"
-                else MLPProbe(embed_dim=self.uvit.embed_dim)
-                for _ in range(len(uvit.out_blocks))
-            ]
-        )
-        self.mid_block_classifier = (
-            AttentionProbe(embed_dim=uvit.embed_dim)
-            if classifier_type == "attention_probe"
-            else MLPProbe(embed_dim=self.uvit.embed_dim)
-        )
-
-        self.out_blocks_classifiers = nn.ModuleList(
-            [
-                AttentionProbe(embed_dim=uvit.embed_dim)
-                if classifier_type == "attention_probe"
-                else MLPProbe(embed_dim=self.uvit.embed_dim)
-                for _ in range(len(uvit.out_blocks))
-            ]
-        )
+        # !!! Change get_classifier as well if you change this!!!
+        # TODO: FIXME (right now we have to modify this both in get_classifier and here)
+        if classifier_type == "attention_probe":
+            self.matrix = nn.ModuleDict(
+                {f"{i}": AttentionProbe(embed_dim=uvit.embed_dim) for i in range(13)}
+            )
+        elif classifier_type == "mlp_probe_per_layer":
+            self.matrix = nn.ModuleDict(
+                {f"{i}": MLPProbe(embed_dim=uvit.embed_dim) for i in range(13)}
+            )
+        elif classifier_type == "mlp_probe_per_timestep":
+            self.matrix = nn.ModuleDict(
+                {f"{t}": MLPProbe(embed_dim=uvit.embed_dim) for t in range(1000)}
+            )
+        elif classifier_type == "mlp_probe_per_layer_per_timestep":
+            self.matrix = nn.ModuleDict(
+                {
+                    f"{i}, {t}": MLPProbe(embed_dim=uvit.embed_dim)
+                    for t in range(1000)
+                    for i in range(13)
+                }
+            )
 
         # Add output heads (in training we'll use them all the time, in inference only if there's early exit)
         self.in_blocks_heads = nn.ModuleList(
@@ -141,6 +153,10 @@ class EarlyExitUViT(nn.Module):
         )
 
     def forward(self, x, timesteps):
+        t = int(timesteps[0])
+        if self.uvit.normalize_timesteps:
+            timesteps = timesteps.float() / 1000
+
         classifier_outputs = []
         outputs = []
 
@@ -155,21 +171,24 @@ class EarlyExitUViT(nn.Module):
 
         skips = []
 
-        for blk, classifier, output_head in zip(
-            self.uvit.in_blocks, self.in_blocks_classifiers, self.in_blocks_heads
+        for blk, layer_id, output_head in zip(
+            self.uvit.in_blocks, range(6), self.in_blocks_heads
         ):
+            classifier = self.get_classifer(t, layer_id)
             outputs.append(output_head(x))
             classifier_outputs.append(classifier(x))
             x = blk(x)
             skips.append(x)
 
+        classifier = self.get_classifer(t, 6)
         outputs.append(self.mid_block_head(x))
         classifier_outputs.append(classifier(x))
         x = self.uvit.mid_block(x)
 
-        for blk, classifier, output_head in zip(
-            self.uvit.out_blocks, self.out_blocks_classifiers, self.out_blocks_heads
+        for blk, layer_id, output_head in zip(
+            self.uvit.out_blocks, range(7, 13), self.out_blocks_heads
         ):
+            classifier = self.get_classifer(t, layer_id)
             outputs.append(output_head(x))
             classifier_outputs.append(classifier(x))
             x = blk(x, skips.pop())

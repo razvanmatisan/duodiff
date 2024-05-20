@@ -63,8 +63,17 @@ def test_mlp_probe():
     assert y.shape == (16,)
 
 
-def test_backward():
-    model = EarlyExitUViT(UViT(**cifar10_config))
+@pytest.mark.parametrize(
+    "classifier_type",
+    [
+        "attention_probe",
+        "mlp_probe_per_layer",
+        "mlp_probe_per_timestep",
+        "mlp_probe_per_layer_per_timestep",
+    ],
+)
+def test_backward(classifier_type):
+    model = EarlyExitUViT(UViT(**cifar10_config), classifier_type=classifier_type)
     y, classifier_outputs, outputs = model(x, t)
 
     assert y.shape == x.shape

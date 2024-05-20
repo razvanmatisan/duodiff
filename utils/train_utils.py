@@ -26,6 +26,7 @@ def get_model(args):
             qkv_bias=args.qkv_bias,
             mlp_time_embed=args.mlp_time_embed,
             num_classes=args.num_classes,
+            normalize_timesteps=args.normalize_timesteps,
         )
     elif args.model == "deediff_uvit":
         model = UViT(
@@ -38,6 +39,7 @@ def get_model(args):
             qkv_bias=args.qkv_bias,
             mlp_time_embed=args.mlp_time_embed,
             num_classes=args.num_classes,
+            normalize_timesteps=args.normalize_timesteps,
         )
 
         print(f"Initializing EarlyExitUViT with {args.classifier_type}")
