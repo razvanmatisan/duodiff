@@ -85,13 +85,13 @@ def get_args():
         default=None,
         help="Checkpoint to a pretrained UViT backbone",
     )
-    parser.add_argument("--freeze_backbone", type=bool, action="store_true")
+    parser.add_argument("--freeze_backbone", action="store_true")
     parser.add_argument(
         "--normalize_timesteps",
         action="store_true",
         help="If true, normalize the timesteps in [0, 1] from [0, 1000]",
     )
-    parser.add_argument("--use_unweighted_loss", type=bool, action="store_true")
+    parser.add_argument("--use_unweighted_loss", action="store_true")
 
     parser.add_argument(
         "--save_checkpoint_path",

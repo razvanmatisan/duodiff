@@ -52,6 +52,7 @@ def get_model(args):
                 model.load_state_dict(checkpoint)
 
             if args.freeze_backbone:
+                print("Freezing the backbone...")
                 for param in model.parameters():
                     param.requires_grad = False
 
