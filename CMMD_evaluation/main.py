@@ -13,11 +13,12 @@ from torchmetrics.image.fid import FrechetInceptionDistance
 from torchvision import transforms
 from torchvision.datasets import CIFAR10
 from torchvision.utils import save_image
+from tqdm import tqdm
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
 from datasets.cifar10 import get_cifar10_dataloader
-from models.early_exit import EarlyExitUViT
+from models.early_exit import EarlyExitUViT, OldEarlyExitUViT
 from models.uvit import UViT
 from utils.train_utils import (
     get_noise_scheduler,
@@ -116,6 +117,49 @@ def get_args():
 
     return parser.parse_args()
 
+device = get_device()
+betas = torch.linspace(1e-4, 0.02, 1000).to(device)
+alphas = 1 - betas
+alphas_bar = torch.cumprod(alphas, dim=0)
+alphas_bar_previous = torch.cat([torch.tensor([1.0], device=device), alphas_bar[:-1]])
+betas_tilde = betas * (1 - alphas_bar_previous) / (1 - alphas_bar)
+
+def sample(threshold, model):
+    bs = 8
+    torch.manual_seed(0)
+
+    x = torch.randn(bs, 3, 32, 32).to(device)
+    error_prediction_by_timestep = torch.zeros(1000, 13)
+    indices_by_timestep = torch.zeros(1000, bs)
+    for t in tqdm(range(1000, 0, -1)):
+        with torch.no_grad():
+            time_tensor = t / 1000 * torch.ones(bs, device=device)
+            epsilon, classifier_outputs, outputs = model(x, time_tensor)
+
+        outputs = torch.stack(outputs + [epsilon])
+        classifier_outputs = torch.stack(
+            classifier_outputs + [torch.zeros_like(classifier_outputs[0])]
+        )
+
+        # Simulate early exit with a global threshold
+        indices = torch.argmax((classifier_outputs <= threshold).int(), dim=0)
+        epsilon = outputs[indices, torch.arange(bs)]
+
+        # Log for visualization
+        error_prediction_by_timestep[t - 1] = classifier_outputs.mean(axis=1)[:13]
+        indices_by_timestep[t - 1, :] = indices
+
+        alpha_t = alphas[t - 1]
+        alpha_bar_t = alphas_bar[t - 1]
+        sigma_t = torch.sqrt(betas_tilde[t - 1])
+
+        z = torch.randn_like(x) if t > 1 else 0
+        x = (
+            torch.sqrt(1 / alpha_t)
+            * (x - (1 - alpha_t) / (torch.sqrt(1 - alpha_bar_t)) * epsilon)
+        ) + sigma_t * z
+
+    return x
 
 def save_cifar10_images(directory):
     args = get_args()
@@ -130,7 +174,6 @@ def save_cifar10_images(directory):
         filename = os.path.join(directory, f"{seed}.png")
         # Save image; 'save_image' expects a batch dimension, so use 'unsqueeze(0)'
         save_image(x, filename)
-
 
 def save_cifar10_sampled_images(directory):
     args = get_args()
@@ -148,11 +191,14 @@ def save_cifar10_sampled_images(directory):
         num_classes=-1,
     )
 
-    model = EarlyExitUViT(uvit=uvit, exit_threshold=args.exit_threshold)
+    model = OldEarlyExitUViT(uvit=uvit, classifier_type="attention_probe", exit_threshold=args.exit_threshold)
 
     if args.load_checkpoint_path:
         state_dict = torch.load(args.load_checkpoint_path, device)
-        model.load_state_dict(state_dict["model_state_dict"])
+        if "model_state_dict" in state_dict:
+            model.load_state_dict(state_dict["model_state_dict"])
+        else:
+            model.load_state_dict(state_dict)
     else:
         print("The loaded checkpoint path is wrong or not provided!")
         exit(1)
@@ -165,21 +211,12 @@ def save_cifar10_sampled_images(directory):
     os.makedirs(directory, exist_ok=True)
 
     for seed in range(args.start_seed, args.end_seed):
-        seed_everything(seed)
-
-        sample, _ = noise_scheduler.sample(
-            model=model,
-            num_steps=args.num_timesteps,
-            data_shape=(3, args.sample_height, args.sample_width),
-            num_samples=1,
-            seed=seed,
-            model_type=args.model,
-            benchmarking=args.benchmarking,
-        )
+        x = sample(args.exit_threshold, model)
+        x = (x + 1) / 2
 
         # File path to save the image, e.g., 'generated_data/0.png'
         filename = os.path.join(directory, f"{seed}.png")
-        save_image(sample, filename)
+        save_image(x, filename)
 
 
 def compute_cmmd(ref_dir, eval_dir, ref_embed_file=None, batch_size=32, max_count=-1):
