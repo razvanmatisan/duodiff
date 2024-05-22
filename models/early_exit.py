@@ -80,6 +80,124 @@ class AttentionProbe(nn.Module):
         return x
 
 
+# Old Early Exit UViT for loading old checkpoints
+# It works only for classifier_type:
+#   - attention_probe
+#   - mlp_probe_per_layer
+class OldEarlyExitUViT(nn.Module):
+    def __init__(
+        self, uvit: UViT, classifier_type="attention_probe", exit_threshold=0.2
+    ):
+        super().__init__()
+
+        self.uvit = uvit
+        self.exit_threshold = exit_threshold
+
+        # Add classifiers (they tell us if we should exit)
+        self.in_blocks_classifiers = nn.ModuleList(
+            [
+                AttentionProbe(embed_dim=uvit.embed_dim)
+                if classifier_type == "attention_probe"
+                else MLPProbe(
+                    embed_dim=self.uvit.embed_dim
+                )
+                for _ in range(len(uvit.out_blocks))
+            ]
+        )
+        self.mid_block_classifier = (
+            AttentionProbe(embed_dim=uvit.embed_dim)
+            if classifier_type == "attention_probe"
+            else MLPProbe(embed_dim=self.uvit.embed_dim)
+        )
+
+        self.out_blocks_classifiers = nn.ModuleList(
+            [
+                AttentionProbe(embed_dim=uvit.embed_dim)
+                if classifier_type == "attention_probe"
+                else MLPProbe(
+                    embed_dim=self.uvit.embed_dim
+                )
+                for _ in range(len(uvit.out_blocks))
+            ]
+        )
+
+        # Add output heads (in training we'll use them all the time, in inference only if there's early exit)
+        self.in_blocks_heads = nn.ModuleList(
+            [
+                OutputHead(
+                    embed_dim=self.uvit.embed_dim,
+                    patch_dim=self.uvit.patch_dim,
+                    in_chans=self.uvit.in_chans,
+                )
+                for _ in range(len(uvit.in_blocks))
+            ]
+        )
+        self.mid_block_head = OutputHead(
+            embed_dim=self.uvit.embed_dim,
+            patch_dim=self.uvit.patch_dim,
+            in_chans=self.uvit.in_chans,
+        )
+        self.out_blocks_heads = nn.ModuleList(
+            [
+                OutputHead(
+                    embed_dim=self.uvit.embed_dim,
+                    patch_dim=self.uvit.patch_dim,
+                    in_chans=self.uvit.in_chans,
+                )
+                for _ in range(len(uvit.out_blocks))
+            ]
+        )
+
+    def forward(self, x, timesteps):
+        classifier_outputs = []
+        outputs = []
+
+        x = self.uvit.patch_embed(x)
+
+        time_token = self.uvit.time_embed(
+            timestep_embedding(timesteps, self.uvit.embed_dim)
+        )
+        time_token = time_token.unsqueeze(dim=1)
+        x = torch.cat((time_token, x), dim=1)
+        x = x + self.uvit.pos_embed
+
+        skips = []
+
+        for blk, classifier, output_head in zip(
+            self.uvit.in_blocks, self.in_blocks_classifiers, self.in_blocks_heads
+        ):
+            outputs.append(output_head(x))
+            classifier_outputs.append(classifier(x))
+            x = blk(x)
+            skips.append(x)
+
+        outputs.append(self.mid_block_head(x))
+        classifier_outputs.append(classifier(x))
+        x = self.uvit.mid_block(x)
+
+        for blk, classifier, output_head in zip(
+            self.uvit.out_blocks, self.out_blocks_classifiers, self.out_blocks_heads
+        ):
+            outputs.append(output_head(x))
+            classifier_outputs.append(classifier(x))
+            x = blk(x, skips.pop())
+
+        x = self.uvit.norm(x)
+        x = self.uvit.decoder_pred(x)
+        x = x[:, self.uvit.extras :, :]
+        x = unpatchify(x, self.uvit.in_chans)
+        x = self.uvit.final_layer(x)
+        return x, classifier_outputs, outputs
+
+    @property
+    def device(self):
+        return next(self.parameters()).device
+
+
+
+
+
+
 class EarlyExitUViT(nn.Module):
     def get_classifer(self, t, i) -> nn.Module:
         if self.classifier_type == "attention_probe":
