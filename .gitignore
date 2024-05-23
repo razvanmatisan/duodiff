@@ -166,3 +166,4 @@ out_images/
 .ruff_cache/
 /samples/
 /logs/
+images/
