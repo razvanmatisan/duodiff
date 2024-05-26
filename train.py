@@ -226,7 +226,7 @@ def load_checkpoint(args, model, optimizer, train_dataloader, lr_scheduler, devi
         train_dataloader.sampler.set_state(checkpoint["dataloader_sampler_state"])
 
     if "torch_rng_state" in checkpoint:
-        torch.set_rng_state(checkpoint["torch_rng_state"])
+        torch.set_rng_state(checkpoint["torch_rng_state"].cpu())
 
     if "numpy_rng_state" in checkpoint:
         np.random.set_state(checkpoint["numpy_rng_state"])
@@ -306,7 +306,7 @@ def train(
 
     # Need to restore torch rng state after creating the iterator
     if checkpoint is not None and "torch_rng_state" in checkpoint:
-        torch.set_rng_state(checkpoint["torch_rng_state"])
+        torch.set_rng_state(checkpoint["torch_rng_state"].cpu())
 
     model.train()
     times = []

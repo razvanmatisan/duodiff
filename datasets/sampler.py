@@ -47,4 +47,4 @@ class ResumableRandomSampler(torch.utils.data.Sampler):
     def set_state(self, state):
         self.perm = state["perm"]
         self.perm_index = state["perm_index"]
-        self.generator.set_state(state["generator_state"])
+        self.generator.set_state(state["generator_state"].cpu())
