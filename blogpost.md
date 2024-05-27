@@ -96,6 +96,7 @@ The authors argue that estimating the noise in each step of diffusion models can
 $$\begin{align} 
 u_{i, t}=f\left(\mathbf{w}_ {\mathbf{t}}^{T}\left[L_ {i, t}\right.\right., timesteps \left.]+b_ {t}\right), & \qquad \qquad \text{(Eq. 5)} 
 \end{align}$$
+
 where $w_t$, $b_t$, $f$, and $timesteps$ are the weight matrix, weight bias, activation function, and timestep embeddings, respectively.
 
 The pseudo-uncertainty ground truth is constructed as follows:
@@ -174,9 +175,11 @@ We can summarize our novel contributions as follows:
 <!-- As per Equation 5 above, we know that in the original paper, the UEM is implemented as a linear layer. However, this layer is applied independently to each patch, without allowing interaction between patches. Consequently, uncertainties must be aggregated in order to make a decision regarding whether to exit or not. As an alternative, we propose **using an attention probe**. This is implemented as an attention layer, in which the keys and values are derived from the sequence, and a single query vector is learned. This effectively allows interaction between patches and avoids the need to choose a fixed aggregation function (e.g. sum or max). -->
 - Regarding the original UEM implementation, we explore three alternatives: an MLP probe per layer, an MLP probe per timestep, and an MLP probe per layer per timestep. 
 - We have incorporated a novel **fourth component into the model's loss function**, which consists of the UAL loss from Equation 8 without the uncertainty weighting $(1 - u_{i,t})$. The motivation behind this is to prevent the model from potentially learning to produce low-quality outputs and consistently predict "exit", as this behavior would minimize both $\mathcal{L}_u^t$ and $\mathcal{L}_\text{UAL}^t$ losses simultaneously. The analytical expression of this new loss is:
+  
 $$\begin{align} 
 \mathcal{L}_ {L}^{t}=\sum_{i}^{N-1}\left\|g_{i}\left(L_{i, t}\right)-\epsilon\right\|^{2}, & \qquad \qquad \text{(Eq. 10)}
 \end{align}$$
+
 which we add it as a new term in $\mathcal L_{\text{all}}$.
 - Motivated by the potential to reuse already trained diffusion models and enhance their performance, we also explore the possibility of performing early exit on pre-trained models by just fine-tuning the UEMs and projection heads, while keeping the **backbone frozen**.
 - We conduct a thorough **investigation into early-exit trends**, to quantify the impact of this technique on the model's overall efficiency. With this, our primary goal is to identify opportunities for optimizing the model architecture, without compromising the added performance benefits.
@@ -343,42 +346,7 @@ Figure 4 provides a visualization of the difference between the best and worst p
 
 However, the attention probe increases the latency during sampling as compared to the MLP probe. Table 2 illustrates a comparison of the two types of classifiers, as well as the output head in terms of number of inference GFLOPs. The difference between the two probes is significant and could impact the overall performance of the model unless it frequently early exits at multiple timesteps.
 
-<table><thead>
-  <tr>
-    <th>Individual component</th>
-    <th>GFLOPs</th>
-  </tr></thead>
-<tbody>
-   <tr>
-    <td>Attention Probe</td>
-    <td>0.26</td>
-  </tr>
-  <tr>
-    <td>MLP Probe</td>
-    <td>0.0002</td>
-  </tr>
-  <tr>
-    <td>Output Head</td>
-    <td>0.0035</td>
-  </tr>
-</tbody>
-  <tr align="left">
-    <td colspan=7><b>Table 2.</b> Number of GFLOPs used by each individual component of DeeDiff model. 
-  </tr>
-  </table>
 
-
-
-<style type="text/css">
-.tg  {border-collapse:collapse;border-spacing:0;}
-.tg td{border-color:black;border-style:solid;border-width:1px;font-family:Arial, sans-serif;font-size:14px;
-  overflow:hidden;padding:10px 5px;word-break:normal;}
-.tg th{border-color:black;border-style:solid;border-width:1px;font-family:Arial, sans-serif;font-size:14px;
-  font-weight:normal;overflow:hidden;padding:10px 5px;word-break:normal;}
-.tg .tg-0pky{border-color:inherit;text-align:left;vertical-align:top}
-.tg .tg-6ic8{border-color:inherit;font-weight:bold;text-align:right;vertical-align:top}
-.tg .tg-dvpl{border-color:inherit;text-align:right;vertical-align:top}
-</style>
 <table class="tg"><thead>
   <tr>
     <th class="tg-0pky">Individual component<br></th>
@@ -479,7 +447,7 @@ As previously explained, we introduced this novel forth component to the loss to
 
 Regardless of training strategy or UEM implementation, we observe a similar trend with respect to early exiting, namely that the models exit very early in the first time steps of the reverse diffusion process, while they require (almost) full computation for the last steps. Figure 6 shows this trend for the model with attention probe, frozen backbone and 4 losses.
 
-This makes sense because the model is given $\mathbf{x}_t = \sqrt{\bar \alpha_t} \mathbf{x}_0 + \sqrt{1 - \bar \alpha _t} \epsilon$ and has to predict $\epsilon$. When $t$ is large, $\sqrt{\bar \alpha_t}$ will be very small and $\sqrt{1 - \bar \alpha _t}$ will be close to one (see Figure 6bis), so the model just has to act as the identity!
+This makes sense because the model is given $\mathbf{x}_t = \sqrt{\bar \alpha_t} \mathbf{x}_0 + \sqrt{1 - \bar \alpha _t} \epsilon$ and has to predict $\epsilon$. When $t$ is large, $\sqrt{\bar \alpha_t}$ will be very small and $\sqrt{1 - \bar \alpha _t}$ will be close to one (see Figure 7), so the model just has to act as the identity!
 
 <table align="center">
   <tr align="center">
@@ -496,7 +464,7 @@ This makes sense because the model is given $\mathbf{x}_t = \sqrt{\bar \alpha_t}
       <td><img src="img/Figure6bis.png" width=800></td>
   </tr>
   <tr align="left">
-    <td colspan=2><b>Figure 6bis.</b> Taken from [11]. </td>
+    <td colspan=2><b>Figure 7.</b> Taken from [11]. </td>
   </tr>
 </table>
 
@@ -504,31 +472,31 @@ This makes sense because the model is given $\mathbf{x}_t = \sqrt{\bar \alpha_t}
 
 #### Classifier outputs
 
-In addition to investigating the layers where early exiting is performed, we also looked into the uncertainty estimation network outputs computed for every layer and timestep during sampling. We present in Figure 7 an example of these outputs for the same model as above. We observe how the uncertainty values increase as the denoising process advances. It is also interesting to see the differences between layers. The outputs start to increase after the middle layer (7), where the outputs of the initial layers are added to the inputs via the skip connections.
+In addition to investigating the layers where early exiting is performed, we also looked into the uncertainty estimation network outputs computed for every layer and timestep during sampling. We present in Figure 8 an example of these outputs for the same model as above. We observe how the uncertainty values increase as the denoising process advances. It is also interesting to see the differences between layers. The outputs start to increase after the middle layer (7), where the outputs of the initial layers are added to the inputs via the skip connections.
 
 <table align="center">
   <tr align="center">
       <td><img src="img/Figure7.png" width=800></td>
   </tr>
   <tr align="left">
-    <td colspan=2><b>Figure 7.</b> UEM outputs over layers and timesteps of the model with attention probe and frozen backbone and 4 losses. </td>
+    <td colspan=2><b>Figure 8.</b> UEM outputs over layers and timesteps of the model with attention probe and frozen backbone and 4 losses. </td>
   </tr>
 </table>
 
 #### Thresholds and samples
 
-Lastly, we also investigate the impact on image quality based on different threshold. As can be seen in Figure 8, we observe that early-exit thresholds between 0 and 0.05 don't alter the image quality significantly, while thresholds larger than 0.075, which allow early-exit more permissively, result in considerable alterations.
+Lastly, we also investigate the impact on image quality based on different threshold. As can be seen in Figure 9, we observe that early-exit thresholds between 0 and 0.05 don't alter the image quality significantly, while thresholds larger than 0.075, which allow early-exit more permissively, result in considerable alterations.
 
 <table align="center">
   <tr align="center">
       <td><img src="img/Figure8.png" width=800></td>
   </tr>
   <tr align="left">
-    <td colspan=2><b>Figure 8.</b> Images generated from models with different early-exit thresholds. </td>
+    <td colspan=2><b>Figure 9.</b> Images generated from models with different early-exit thresholds. </td>
   </tr>
 </table>
 
-Even if in our implementation we are allowing the model to skip entire timesteps, i.e., early exit before going through the first transformer block (layer 0 in the plots), we have hardly ever observed this behaviour in our experiments. In Figure 6 we can see that this occurs only in the first timesteps for a threshold of 0.1, which, as we can see in Figure 8, is not able to preserve image quality.
+Even if in our implementation we are allowing the model to skip entire timesteps, i.e., early exit before going through the first transformer block (layer 0 in the plots), we have hardly ever observed this behaviour in our experiments. In Figure 6 we can see that this occurs only in the first timesteps for a threshold of 0.1, which, as we can see in Figure 9, is not able to preserve image quality.
 
 ## Further research
 For future research, we aim to address the time and resource constraints encountered during the project and, consequently, conduct additional experiments. This includes (1) experimenting with other datasets featuring higher resolution images, such as CelebA or ImageNet, (2) experimenting with a larger subset of early-exit thresholds and (3) reporting more accurate FID scores based on a larger number of generated images.
