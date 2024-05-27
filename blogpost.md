@@ -81,7 +81,7 @@ DeeDiff is built on a U-ViT architecture, a transformer-based diffusion model. D
 
 <table align="center">
   <tr align="center">
-      <td><img src="https://hackmd.io/_uploads/rk-eYUG4A.png" width=800></td>
+      <td><img src="img/architecture.svg" width=800></td>
   </tr>
   <tr align="left">
     <td colspan=2><b>Figure 1.</b> DeeDiff architecture integrated in a U-ViT-Small transformer.</td>
