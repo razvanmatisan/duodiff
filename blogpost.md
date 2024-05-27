@@ -79,7 +79,7 @@ DeeDiff is built on a U-ViT architecture, a transformer-based diffusion model. D
 
 <table align="center">
   <tr align="center">
-      <td><img src="img/architecture.svg" width=800></td>
+      <td><img src="img/architecture.svg" width=650></td>
   </tr>
   <tr align="left">
     <td colspan=2><b>Figure 1.</b> DeeDiff architecture integrated in a U-ViT-Small transformer.</td>
@@ -321,7 +321,7 @@ Figure 4 provides a visualization of the difference between the best and worst p
 
 <table align="center">
   <tr align="center">
-      <td><img src="img/Figure4.png" width=800></td>
+      <td><img src="img/Figure4.png" width=400></td>
   </tr>
   <tr align="left">
     <td colspan=2><b>Figure 4.</b> Image quality comparison between worst and best models with respect to the FID score. We used the same threshold of 0.075 for both methods. </td>
@@ -364,7 +364,7 @@ Across all types of UEMs, we note a greater layer ratio reduction for the fine-t
 
 <table align="center">
   <tr align="center">
-      <td><img src="img/Figure5.png" width=800></td>
+      <td><img src="img/Figure5.png" width=400></td>
   </tr>
   <tr align="left">
     <td colspan=2><b>Figure 5.</b> Comparison between images generated from models with MLP per layer, with a fine-tuned and a frozen backbone, and a fixed threshold of 0.075. </td>
@@ -433,7 +433,7 @@ This makes sense because the model is given $\mathbf{x}_t = \sqrt{\bar \alpha_t}
 
 <table align="center">
   <tr align="center">
-      <td><img src="img/Figure6.png" width=800></td>
+      <td><img src="img/Figure6.png" width=400></td>
   </tr>
   <tr align="left">
     <td colspan=2><b>Figure 6.</b> Early-exit layers for different thresholds with respect to timesteps for the model with attention probe, frozen backbone and 4 losses. </td>
@@ -443,7 +443,7 @@ This makes sense because the model is given $\mathbf{x}_t = \sqrt{\bar \alpha_t}
 
 <table align="center">
   <tr align="center">
-      <td><img src="img/Figure6bis.png" width=800></td>
+      <td><img src="img/Figure6bis.png" width=400></td>
   </tr>
   <tr align="left">
     <td colspan=2><b>Figure 7.</b> Taken from [11]. </td>
@@ -458,7 +458,7 @@ In addition to investigating the layers where early exiting is performed, we als
 
 <table align="center">
   <tr align="center">
-      <td><img src="img/Figure7.png" width=800></td>
+      <td><img src="img/Figure7.png" width=400></td>
   </tr>
   <tr align="left">
     <td colspan=2><b>Figure 8.</b> UEM outputs over layers and timesteps of the model with attention probe and frozen backbone and 4 losses. </td>
@@ -471,7 +471,7 @@ Lastly, we also investigate the impact on image quality based on different thres
 
 <table align="center">
   <tr align="center">
-      <td><img src="img/Figure8.png" width=800></td>
+      <td><img src="img/Figure8.png" width=400></td>
   </tr>
   <tr align="left">
     <td colspan=2><b>Figure 9.</b> Images generated from models with different early-exit thresholds. </td>
