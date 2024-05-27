@@ -5,8 +5,6 @@
 
 This project delves into and extends upon the discoveries presented in the paper ["DeeDiff: Dynamic Uncertainty-Aware Early Exiting For Accelerating Diffusion Model Generation"](https://arxiv.org/abs/2309.17074). Diffusion models require a large number of iterations to achieve good generation quality, which consequently results in slow inference speed. To address this issue, the authors of DeeDiff propose an early exiting framework aimed to improve the generation speed of diffusion models.  
 
-<!-- This work proposes an early exiting framework to improve the generation speed of diffusion models, based on a timestep-aware uncertainty estimation module attached to each intermediate layer, as well as based on an uncertainty-aware layer-wise loss. -->
-
 This blog post aims to achieve 3 objectives:
   1. Provide readers with a thorough understanding of the proposed framework.
   2. Verify the authors' original claims and results through a reproduction of some of their experiments.
@@ -172,7 +170,6 @@ We can summarize our novel contributions as follows:
   </tr>
 </table>
 
-<!-- As per Equation 5 above, we know that in the original paper, the UEM is implemented as a linear layer. However, this layer is applied independently to each patch, without allowing interaction between patches. Consequently, uncertainties must be aggregated in order to make a decision regarding whether to exit or not. As an alternative, we propose **using an attention probe**. This is implemented as an attention layer, in which the keys and values are derived from the sequence, and a single query vector is learned. This effectively allows interaction between patches and avoids the need to choose a fixed aggregation function (e.g. sum or max). -->
 - Regarding the original UEM implementation, we explore three alternatives: an MLP probe per layer, an MLP probe per timestep, and an MLP probe per layer per timestep. 
 - We have incorporated a novel **fourth component into the model's loss function**, which consists of the UAL loss from Equation 8 without the uncertainty weighting $(1 - u_{i,t})$. The motivation behind this is to prevent the model from potentially learning to produce low-quality outputs and consistently predict "exit", as this behavior would minimize both $\mathcal{L}_u^t$ and $\mathcal{L}_\text{UAL}^t$ losses simultaneously. The analytical expression of this new loss is:
   
@@ -191,9 +188,6 @@ which we add it as a new term in $\mathcal L_{\text{all}}$.
 
 We conducted all experiments on the CIFAR-10 dataset, which consists of images with a resolution of 32x32. In alignment with the methodology outlined in the original paper, we use a U-ViT-Small model which consists of 13 layers.
 
-<!-- and which features skip connections between the outputs of layers 1-6 and the inputs of layers 7-13. -->
-
-
 #### Training strategies
 We use the AdamW optimizer with a learning rate of $2 \cdot 10^{-4}$ and a cosine scheduler with a warmup (see our GitHub repo for more details).  
 
@@ -208,8 +202,6 @@ For initializing the backbone, we experiment both with available [pre-trained we
 
 To replicate the experiments in the original paper as closely as possible, we have conducted several experiments with MLP layers as UEMs. The authors mention implementing different UEMs for each time step, however it is unclear if they are also different per layer. Thus, we have implemented 3 different approaches: (1) different MLPs for each timestep (1000 UEMs), (2) different MLPs for each layer (13 UEMs), and (3) different MLPs for each timestep and layer (13000 UEMs). 
 
-<!-- For the implementation of the MLP itself, we experiment with 2 approaches. The first one, as suggested in the original paper, is to apply the MLP on the third input dimension (embedding dimension) and to aggregate with a mean on the second dimension (number of patches), while the second one is the other way around (applying the MLP on the second dimension and aggregating on the third).  -->
-
 Furthermore, we also experiment with our proposed attention probe, by having one for each layer and for which we inject the time information in the input embedding.
 
 
@@ -219,13 +211,7 @@ To evaluate our models comprehensively, we assess both the quality of the genera
 
 On the one hand, we test the quality of generated samples through FID score, which provides a robust measure of image quality in comparison to the simple UViT baseline.
 
-<!-- For the qualitative analysis, we use the generated images to perform a visual inspection and report the FID score, providing  -->
-
 Furthermore, to quantify the efficiency gains, we calculate and report the average layer ratio and average theoretical GFLOPs. The layer ratio is presented as follows: in the baseline, without early exit, the layer ratio is 1, indicating full utilization of all model layers. With early exit, the total number of layers decreases, and as such we report this reduction as a negative percentage, denoted as "-x%", where "x" signifies the proportion of layers bypassed in the computation. Additionally, we calculate the theoretical GFLOPs for each model forward pass at every timestep and for each generated sample. At the same time, we determine the GFLOPs used on each individual components of the architecture (i.e., attention probe, MLP probe, output head).
-
-
-<!-- To qualitatively assess the generated images, we chose the CMMD metric [9], an improvement over the widely-used FID metric featured in the original DeeDiff paper. While FID is popular, it has several limitations, such as not reflecting gradual improvement, not capturing distortion levels, and producing inconsistent results across varying sample sizes. CMMD, on the other hand, addresses these limitations and provides a more robust and reliable assessment of image quality. However, our decision to use CMMD was primarily driven by practical considerations. Constrained by time and resources, we couldn't generate the large number of images required for an accurate FID evaluation, making CMMD a more feasible option. -->
-
 
 ## Results
 
@@ -325,8 +311,6 @@ As detailed in the Evaluation section, our reporting includes FID scores, averag
   </table>
   
 
-
-
 #### Ablation 1: Implementation of the UEM module
 
 We conducted experiments to analyze the impact of different implementations of the UEM module. Contrary to the original paper, where the authors exclusively propose different MLPs per timestep, we observe that MLP per timestep yields the least favorable results. As depicted in Table 1, with a frozen backbone, the model performs virtually no early exiting. With a fine-tuned backbone, it records the highest FID score, with a 2.18x increase compared to the baseline, accompanied by visually poor quality in the generated images upon manual inspection. MLP per timestep per layer performs in a similar fashion. Consequently, our findings highlight our inability to replicate their results under our experimental conditions.
@@ -388,8 +372,6 @@ Across all types of UEMs, we note a greater layer ratio reduction for the fine-t
 </table>
 
 We also compare models initialized with pre-trained weights versus models where the backbone is trained from scratch together with the other modules.
-
-<!-- TODO: add about training from scratch -->
 
 #### Ablation 3: Addition of unweighted layer-wise loss
 
