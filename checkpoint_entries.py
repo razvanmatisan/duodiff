@@ -63,6 +63,16 @@ checkpoint_entries = {
         model_type=OldEarlyExitUViT,
         classifier_type="attention_probe",
     ),
+    "attention_initialized": CheckpointEntry(
+        checkpoint_path="logs/6344819/cifar10_deediff_uvit.pth",
+        model_type=EarlyExitUViT,
+        classifier_type="attention_probe",
+    ),
+    "mlp_per_time_per_layer_initialized": CheckpointEntry(
+        checkpoint_path="logs/6374645/cifar10_deediff_uvit.pth",
+        model_type=EarlyExitUViT,
+        classifier_type="mlp_probe_per_layer_per_timestep",
+    ),
 }
 
 if __name__ == "__main__":
