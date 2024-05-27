@@ -33,21 +33,25 @@ $$p_\theta \left( \mathbf x_{t-1} \mid \mathbf x_t \right) := \mathcal{N} \left(
 The goal is for $p_\theta \left( \mathbf x_{t-1} \mid \mathbf x_t \right)$ to resemble $q\left(\mathbf x_{t - 1} \mid \mathbf x_t, x_0 \right)$. This is accomplished by keeping $\mathbf \Sigma_{\mathbf \theta} \left( \mathbf x_t, t \right)$ fixed at $\tilde \beta_t \mathbf I$, where $\tilde \beta_t = \frac{1 - \bar \alpha_{t - 1}}{1 - \bar \alpha_t} \beta_t,$ and estimating $\mathbf \mu_{\mathbf \theta} \left( \mathbf x_t, t \right)$ using a neural network that predicts
 
 $$\begin{align} 
-\mathbf \mu_\theta \left( \mathbf x_t, t \right) = \frac{1}{\sqrt{\alpha_t}} \left( x_t - \frac{\beta_t}{\sqrt{1 - \bar{\alpha}_t}} \mathbf \epsilon_\theta \left( x_t, t \right) \right) & \qquad \qquad \text{(Eq. 3),}
+\mathbf \mu_\theta \left( \mathbf x_t, t \right) = \frac{1}{\sqrt{\alpha_t}} \left( x_t - \frac{\beta_t}{\sqrt{1 - \bar{\alpha}_ t}} \mathbf \epsilon_\theta \left( x_t, t \right) \right) & \qquad \qquad \text{(Eq. 3),}
 \end{align}$$
 
 where $\alpha_t = 1 - \beta_t$ and $\bar \alpha_t = \Pi_{i=1}^t \alpha_i$.
 
 During training, the loss is computed as the expectation of the difference between the real $\mathbf \epsilon_t$ noise and its approximation $\epsilon_{\mathbf \theta} \left( \mathbf x_t, t \right)$:
 
-$$\mathcal{L}_{\text{simple}}^{t}(\theta) = \mathbb{E}_{\mathbf x_0, \epsilon, t } \left[ \left|| \mathbf \epsilon - \mathbf \epsilon_\theta \left(\mathbf x_t, t \right) \right||_2^2 \right], \text{ where } \mathbf x_t = \sqrt{\bar \alpha_t }\mathbf x_0 + \sqrt{1 - \bar \alpha_t }\mathbf \epsilon, \;, \mathbf \epsilon \sim \mathcal N(\mathbf 0, \mathbf I) \qquad \qquad \text{(Eq. 4)}$$
+$$\mathcal{L}_ {\text{simple}}^{t}(\theta) = \mathbb{E}_ {\mathbf x_0, \epsilon, t } \left[ \left|| \mathbf \epsilon - \mathbf \epsilon_\theta \left(\mathbf x_t, t \right) \right||_2^2 \right], \text{ where } \mathbf x_t = \sqrt{\bar \alpha_t }\mathbf x_0 + \sqrt{1 - \bar \alpha_t }\mathbf \epsilon, \;, \mathbf \epsilon \sim \mathcal N(\mathbf 0, \mathbf I) \qquad \qquad \text{(Eq. 4)}$$
 
 Once the model has been trained, sampling can be done following this pseudo-code (DDPM [1]):
 
-> $\mathbf{x}_T \sim \mathcal{N}(\mathbf{0}, \mathbf{I})$
+> $\mathbf{x}_ T \sim \mathcal{N}(\mathbf{0}, \mathbf{I})$
+> 
 > for $t = T, \dots, 1$:
+> 
 > &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; $\mathbf{z} \sim \mathcal{N}(\mathbf{0}, \mathbf{I})$
-> &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; $\mathbf{x}_{t - 1} = \frac{1}{\sqrt{\alpha_t}} \left(\mathbf{x}_t - \frac{1 - \alpha_t }{\sqrt{1 - \bar \alpha_t}}\epsilon_\theta \left(\mathbf x_t, t \right) \right) + [t > 1] \sqrt{\tilde \beta_t} \mathbf{z}$
+> 
+> &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; $\mathbf{x}_ {t - 1} = \frac{1}{\sqrt{\alpha_t}} \left(\mathbf{x}_ t - \frac{1 - \alpha_t }{\sqrt{1 - \bar \alpha_t}}\epsilon_\theta \left(\mathbf x_t, t \right) \right) + [t > 1] \sqrt{\tilde \beta_t} \mathbf{z}$
+> 
 > return $\mathbf{x}_{0}$
 
 #### Backbone architectures
@@ -90,14 +94,14 @@ DeeDiff is built on a U-ViT architecture, a transformer-based diffusion model. D
 The authors argue that estimating the noise in each step of diffusion models can be regarded as a regression task, and thus consider each generation step separately. Namely, for the implementation of the uncertainty estimation networks, they propose a timestep-aware UEM in the form of a fully-connected layer:
 
 $$\begin{align} 
-u_{i, t}=f\left(\mathbf{w}_{\mathbf{t}}^{T}\left[L_{i, t}\right.\right., timesteps \left.]+b_{t}\right), & \qquad \qquad \text{(Eq. 5)} 
+u_{i, t}=f\left(\mathbf{w}_ {\mathbf{t}}^{T}\left[L_ {i, t}\right.\right., timesteps \left.]+b_ {t}\right), & \qquad \qquad \text{(Eq. 5)} 
 \end{align}$$
 where $w_t$, $b_t$, $f$, and $timesteps$ are the weight matrix, weight bias, activation function, and timestep embeddings, respectively.
 
 The pseudo-uncertainty ground truth is constructed as follows:
 
 $$\begin{align} 
-\hat{u}_{i, t}=F\left(\left|g_{i}\left(L_{i, t}\right)-\epsilon_{t}\right|\right), & \qquad \qquad \text{(Eq. 6)} 
+\hat{u}_ {i, t}=F\left(\left|g_{i}\left(L_{i, t}\right)-\epsilon_{t}\right|\right), & \qquad \qquad \text{(Eq. 6)} 
 \end{align}$$
 
 where $g_i$ is the output layer, $\epsilon_t$ is the ground truth noise value and $F$ is a function to smooth the output. The authors used $F = \tanh$.
@@ -118,7 +122,7 @@ The implementation of the output layer, shown in Figure 2, is inspired on the fi
 This brings forth the loss function of this module, designed as the MSE loss of the estimated and pseudo ground truth uncertainty:
 
 $$\begin{align} 
-\mathcal{L}_{u}^{t}=\sum_{i=0}^{N}\left\|u_{i, t}-\hat{u}_{i, t}\right\|^{2} & \qquad \qquad \text{(Eq. 7)}
+\mathcal{L}_ {u}^{t}=\sum_{i=0}^{N}\left\|u_{i, t}-\hat{u}_{i, t}\right\|^{2} & \qquad \qquad \text{(Eq. 7)}
 \end{align}$$
 
 During inference, early exit is then achieved by comparing the estimated uncertainty of the output prediction from each layer with a predefined threshold.
@@ -129,7 +133,7 @@ During inference, early exit is then achieved by comparing the estimated uncerta
 To mitigate the information loss that occurs when not utilizing the full model, the authors also propose an uncertainty-aware layer-wise loss. They draw inspiration from previous work, with one important modification, a weighting term, to account for the information loss accumulating over multi-step inference:
 
 $$\begin{align} 
-\mathcal{L}_{U A L}^{t}=\sum_{i=0}^{N-1}\left(1-u_{i, t}\right) \times\left\|g_{i}\left(L_{i, t}\right)-\epsilon_t\right\|^{2}, & \qquad \qquad \text{(Eq. 8)}
+\mathcal{L}_ {U A L}^{t}=\sum_{i=0}^{N-1}\left(1-u_{i, t}\right) \times\left\|g_{i}\left(L_{i, t}\right)-\epsilon_t\right\|^{2}, & \qquad \qquad \text{(Eq. 8)}
 \end{align}$$
 
 where $u_{i, t}$ is the uncertainty value estimated in each layer.
@@ -140,7 +144,7 @@ DeeDiff utilizes a joint training strategy to balance the effect between uncerta
 
 
 $$\begin{align} 
-\mathcal{L}_{\text {all }}=\mathcal{L}_{\text {simple }}^{t}(\theta)+\lambda \mathcal{L}_{u}^{t}+\beta \mathcal{L}_{U A L}^{t}. & \qquad \qquad \text{(Eq. 9)}
+\mathcal{L}_ {\text {all }}=\mathcal{L}_ {\text {simple }}^{t}(\theta)+\lambda \mathcal{L}_ {u}^{t}+\beta \mathcal{L}_{U A L}^{t}. & \qquad \qquad \text{(Eq. 9)}
 \end{align}$$
 
 In their experiments, the authors chose $\lambda = 1$ and $\beta = 1$.
@@ -171,7 +175,7 @@ We can summarize our novel contributions as follows:
 - Regarding the original UEM implementation, we explore three alternatives: an MLP probe per layer, an MLP probe per timestep, and an MLP probe per layer per timestep. 
 - We have incorporated a novel **fourth component into the model's loss function**, which consists of the UAL loss from Equation 8 without the uncertainty weighting $(1 - u_{i,t})$. The motivation behind this is to prevent the model from potentially learning to produce low-quality outputs and consistently predict "exit", as this behavior would minimize both $\mathcal{L}_u^t$ and $\mathcal{L}_\text{UAL}^t$ losses simultaneously. The analytical expression of this new loss is:
 $$\begin{align} 
-\mathcal{L}_{L}^{t}=\sum_{i}^{N-1}\left\|g_{i}\left(L_{i, t}\right)-\epsilon\right\|^{2}, & \qquad \qquad \text{(Eq. 10)}
+\mathcal{L}_ {L}^{t}=\sum_{i}^{N-1}\left\|g_{i}\left(L_{i, t}\right)-\epsilon\right\|^{2}, & \qquad \qquad \text{(Eq. 10)}
 \end{align}$$
 which we add it as a new term in $\mathcal L_{\text{all}}$.
 - Motivated by the potential to reuse already trained diffusion models and enhance their performance, we also explore the possibility of performing early exit on pre-trained models by just fine-tuning the UEMs and projection heads, while keeping the **backbone frozen**.
