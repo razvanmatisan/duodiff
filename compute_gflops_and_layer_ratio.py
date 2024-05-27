@@ -46,6 +46,7 @@ def get_args():
     parser.add_argument(
         "--indices_by_timestep_directory",
         type=str,
+        default="output/attention_frozen/indices_by_timestep",
         help="Path to the directory where indices by timestep are saved",
     )
 
@@ -91,4 +92,14 @@ if __name__ == "__main__":
     )
     print(
         f"Std GFlops using {avg_gflops_per_sample.shape[0]} samples: {avg_gflops_per_sample.std()}"
+    )
+
+    # Average layer ratio
+    average_layer_ratio_per_sample = (
+        indices_by_timesteps.float().mean(axis=0) / 13.0
+    )  # (1024,)
+
+    average_layer_ratio = average_layer_ratio_per_sample.mean()
+    print(
+        f"Average layer ratio using {average_layer_ratio_per_sample.shape[0]} samples: {average_layer_ratio}"
     )
