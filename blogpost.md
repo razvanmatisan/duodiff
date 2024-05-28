@@ -24,7 +24,7 @@ $$\begin{align}
 q\left(\mathbf x_t \mid \mathbf x_{t-1} \right) = \mathcal{N}\left( \mathbf x_t ; \sqrt{1-\beta_t} \mathbf x_{t-1}, \beta_t \mathbf{I} \right) & \qquad \qquad \text{(Eq. 1)} 
 \end{align}$$
 
-The mean and the variance of the distribution are parametrized with a diffusion rate $\beta_t$ in (0,1), which starts close to zero and increases with respect to the timestep.
+The mean and the variance of the distribution are parametrized with a diffusion rate $\beta_t$, which starts close to zero and increases with respect to the timestep.
 
 The reverse process models the distribution of $\mathbf X_{t-1} | \mathbf X_t$, which implies not only representing the marginal distribution of $\mathbf X_0$ but also being able to integrate over it. Thus, it is not possible to calculate the conditional distribution directly, and as such it is approximated with another Gaussian distribution:
 
@@ -431,8 +431,6 @@ As previously explained, we introduced this novel forth component to the loss to
 
 Regardless of training strategy or UEM implementation, we observe a similar trend with respect to early exiting, namely that the models exit very early in the first time steps of the reverse diffusion process, while they require (almost) full computation for the last steps. Figure 6 shows this trend for the model with attention probe, frozen backbone and 4 losses.
 
-This makes sense because the model is given $\mathbf{x}_t = \sqrt{\bar \alpha_t} \mathbf{x}_0 + \sqrt{1 - \bar \alpha _t} \epsilon$ and has to predict $\epsilon$. When $t$ is large, $\sqrt{\bar \alpha_t}$ will be very small and $\sqrt{1 - \bar \alpha _t}$ will be close to one (see Figure 7), so the model just has to act as the identity!
-
 <table align="center">
   <tr align="center">
       <td><img src="img/Figure6.png" width=400></td>
@@ -442,6 +440,7 @@ This makes sense because the model is given $\mathbf{x}_t = \sqrt{\bar \alpha_t}
   </tr>
 </table>
 
+This makes sense because the model is given $\mathbf{x}_t = \sqrt{\bar \alpha_t} \mathbf{x}_0 + \sqrt{1 - \bar \alpha _t} \epsilon$ and has to predict $\epsilon$. When $t$ is large, corresponding to the first steps in the reverse diffusion process, $\sqrt{\bar \alpha_t}$ will be very small and $\sqrt{1 - \bar \alpha _t}$ will be close to one (see Figure 7), therefore $\mathbf{x}_t$ will be closer to the noise $\epsilon$ and further from $\mathbf{x}_0$. On the other hand, when t is small, closer to the end of the generation process, $\mathbf{x}_t$ will be closer to $\mathbf{x}_0$ and less like the noise.
 
 <table align="center">
   <tr align="center">
