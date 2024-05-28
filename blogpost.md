@@ -257,8 +257,8 @@ As detailed in the Evaluation section, our reporting includes FID scores, averag
   <tr>
     <td>Trained from scratch</td>
     <td>125.15</td>
-    <td></td>
-    <td></td>
+    <td>-39.32%</td>
+    <td>13.74</td>
   </tr>
   <tr>
     <td rowspan="2">Per timestep</td>
@@ -302,9 +302,9 @@ As detailed in the Evaluation section, our reporting includes FID scores, averag
   </tr>
   <tr>
     <td>Trained from scratch</td>
-    <td></td>
-    <td></td>
-    <td></td>
+    <td>114.62</td>
+    <td>-40%</td>
+    <td>15.80</td>
   </tr>
 </tbody>
   <tr align="left">
@@ -373,7 +373,7 @@ Across all types of UEMs, we note a greater layer ratio reduction for the fine-t
   </tr>
 </table>
 
-We also compare models initialized with pre-trained weights versus models where the backbone is trained from scratch together with the other modules.
+We also compare models initialized with pre-trained weights versus models where the backbone is trained from scratch together with the other modules. We perform this experiment for the MLP per layer and the attention probe. In both cases, we observe that the models trained from scratch result in higher FID scores, with an increase of 44.55% for the MLP, and 34.09% for the attention probe respectively. Furthermore, the models trained from scratch do not achieve a better layer ratio reduction, therefore we conclude that initializing the backbone with pre-trained weights is beneficial.
 
 #### Ablation 3: Addition of unweighted layer-wise loss
 
@@ -479,7 +479,55 @@ Lastly, we also investigate the impact on image quality based on different thres
   </tr>
 </table>
 
-Even if in our implementation we are allowing the model to skip entire timesteps, i.e., early exit before going through the first transformer block (layer 0 in the plots), we have hardly ever observed this behaviour in our experiments. In Figure 6 we can see that this occurs only in the first timesteps for a threshold of 0.1, which, as we can see in Figure 9, is not able to preserve image quality.
+Furthermore, we compare results obtained with thresholds 0.05 and 0.075 for our best performing models, namely with MLP per layer and attention probe as UEMs, and a frozen backbone.
+
+<table><thead>
+  <tr>
+    <th>Model</th>
+    <th>Classif. head</th>
+    <th>Threshold</th>
+    <th>FID</th>
+    <th>Layer ratio reduction</th>
+    <th>Average GFLOPs</th>
+  </tr></thead>
+<tbody>
+  <tr>
+    <td rowspan="2">MLP</td>
+    <td rowspan="2">Per layer</td>
+    <td>0.05</td>
+    <td>79.71</td>
+    <td>-16.54%</td>
+    <td>18.90</td>
+  </tr>
+  <tr>
+    <td>0.075</td>
+    <td>86.57</td>
+    <td>-31.1%</td>
+    <td>15.58</td>
+  </tr>
+  <tr>
+    <td rowspan="2">Attention probe</td>
+    <td rowspan="2">Per layer</td>
+    <td>0.05</td>
+    <td>80.08</td>
+    <td>-16.295</td>
+    <td>21.91</td>
+  </tr>
+  <tr>
+    <td>0.075</td>
+    <td>85.48</td>
+    <td>-32%</td>
+    <td>17.84</td>
+  </tr>
+</tbody>
+  <tr align="left">
+    <td colspan=7><b>Table 4.</b> Quality and speed results for image generation with DeeDiff using U-ViT-Small as backbone for MLP per layer and attention probe based models, with a frozen backbone.
+  </tr>
+  </table>
+
+The results in Table 4 align with our expectations, demonstrating that a lower threshold enhances image quality. However, this improvement comes at the cost of increased computational demand, resulting in fewer instances of early exiting. This finding highlights the necessity of not only a more refined, and potentially adaptive threshold, but also the inevitable trade-off between quality and performance, necessitating careful consideration based on specific needs and constraints.
+
+As a final observation, it is notable that despite allowing the model to skip entire timesteps, i.e., early exit before going through the first transformer block (layer 0 in the plots), we have hardly ever observed this behaviour in our experiments. Figure 6 illustrates that this phenomenon only manifests in the initial timesteps for a threshold of 0.1, which, as evidenced in Figure 9, fails to adequately maintain image quality.
 
 ## Further research
 For future research, we aim to address the time and resource constraints encountered during the project and, consequently, conduct additional experiments. This includes (1) experimenting with other datasets featuring higher resolution images, such as CelebA or ImageNet, (2) experimenting with a larger subset of early-exit thresholds and (3) reporting more accurate FID scores based on a larger number of generated images.
