@@ -1,3 +1,5 @@
+### !Note: We are still waiting for some experimental results and will include them before Thursday. By then, we will also reorganize the repository to align with the given requirements.
+
 # DeeDiff: Dynamic Uncertainty-Aware Early Exiting For Accelerating Diffusion Model Generation
 **D. Gallo, R. Matisan, A. Monroy, J. Partyka, A. Vasilcoiu**
 
