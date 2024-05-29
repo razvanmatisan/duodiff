@@ -10,7 +10,6 @@ import torch
 from PIL import Image
 from torchvision.utils import save_image
 from tqdm import tqdm
-import torch
 from einops import rearrange
 from datasets.cifar10 import get_cifar10_dataloader
 from checkpoint_entries import checkpoint_entries
@@ -244,7 +243,7 @@ def compute_cmmd(ref_dir, eval_dir, ref_embed_file=None, batch_size=32, max_coun
 if __name__ == "__main__":
     args = get_args()
 
-    if args.load_from_folder == False:
+    if not args.load_from_folder:
         num_images = save_cifar10_sampled_images(args.samples_directory)
         save_cifar10_images(args.dataset_directory, num_images)
         
