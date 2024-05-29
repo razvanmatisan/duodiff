@@ -15,7 +15,6 @@
 
 """Embedding models used in the CMMD calculation."""
 
-import numpy as np
 import torch
 from transformers import CLIPImageProcessor, CLIPVisionModelWithProjection
 

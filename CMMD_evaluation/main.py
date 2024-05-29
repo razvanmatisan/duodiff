@@ -2,17 +2,19 @@
 import argparse
 import os
 import sys
+
 import distance
 import embedding
 import io_util
 import numpy as np
 import torch
+from einops import rearrange
 from PIL import Image
 from torchvision.utils import save_image
 from tqdm import tqdm
-from einops import rearrange
-from datasets.cifar10 import get_cifar10_dataloader
+
 from checkpoint_entries import checkpoint_entries
+from datasets.cifar10 import get_cifar10_dataloader
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 

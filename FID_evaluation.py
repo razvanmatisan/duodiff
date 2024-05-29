@@ -1,14 +1,17 @@
 import argparse
 import os
+
 import torch
+from einops import rearrange
 from PIL import Image
 from torchmetrics.image.fid import FrechetInceptionDistance
 from torchvision import transforms
 from torchvision.utils import save_image
-from datasets.cifar10 import get_cifar10_dataloader
-from einops import rearrange
-from checkpoint_entries import checkpoint_entries
 from tqdm import tqdm
+
+from checkpoint_entries import checkpoint_entries
+from datasets.cifar10 import get_cifar10_dataloader
+
 
 def get_device():
     if torch.cuda.is_available():
