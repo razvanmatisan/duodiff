@@ -429,14 +429,14 @@ As previously explained, we introduced this novel forth component to the loss to
 
 #### Early-exit layers
 
-Regardless of training strategy or UEM implementation, we observe a similar trend with respect to early exiting, namely that the models exit very early in the first time steps of the reverse diffusion process, while they require (almost) full computation for the last steps. Figure 6 shows this trend for the model with attention probe, frozen backbone and 4 losses.
+Regardless of training strategy or UEM implementation, we observe a similar trend with respect to early exiting, namely that the models exit very early in the first time steps of the reverse diffusion process, while they require (almost) full computation for the last steps. Figure 6 shows this trend for the model with attention probe and frozen backbone.
 
 <table align="center">
   <tr align="center">
-      <td><img src="img/Figure6.png" width=400></td>
+      <td><img src="img/figure6.svg" width=400></td>
   </tr>
   <tr align="left">
-    <td colspan=2><b>Figure 6.</b> Early-exit layers for different thresholds with respect to timesteps for the model with attention probe, frozen backbone and 4 losses. </td>
+    <td colspan=2><b>Figure 6.</b> Early-exit layers for different thresholds with respect to timesteps for the model with attention probe and frozen backbone. </td>
   </tr>
 </table>
 
@@ -459,10 +459,10 @@ In addition to investigating the layers where early exiting is performed, we als
 
 <table align="center">
   <tr align="center">
-      <td><img src="img/Figure7.png" width=400></td>
+      <td><img src="img/figure8.svg" width=400></td>
   </tr>
   <tr align="left">
-    <td colspan=2><b>Figure 8.</b> UEM outputs over layers and timesteps of the model with attention probe and frozen backbone and 4 losses. </td>
+    <td colspan=2><b>Figure 8.</b> UEM outputs over layers and timesteps of the model with attention probe and frozen backbone. </td>
   </tr>
 </table>
 
@@ -472,7 +472,7 @@ Lastly, we also investigate the impact on image quality based on different thres
 
 <table align="center">
   <tr align="center">
-      <td><img src="img/Figure8.png" width=400></td>
+      <td><img src="img/figure9.svg" width=400></td>
   </tr>
   <tr align="left">
     <td colspan=2><b>Figure 9.</b> Images generated from models with different early-exit thresholds. </td>
