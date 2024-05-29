@@ -323,7 +323,7 @@ Figure 4 provides a visualization of the difference between the best and worst p
 
 <table align="center">
   <tr align="center">
-      <td><img src="img/Figure4.png" width=400></td>
+      <td><img src="img/figure4.svg" width=400></td>
   </tr>
   <tr align="left">
     <td colspan=2><b>Figure 4.</b> Image quality comparison between worst and best models with respect to the FID score. We used the same threshold of 0.075 for both methods. </td>
