@@ -1,30 +1,21 @@
+
 import argparse
 import os
 import sys
-
 import distance
 import embedding
 import io_util
 import numpy as np
 import torch
-from absl import app, flags
 from PIL import Image
-from torchmetrics.image.fid import FrechetInceptionDistance
-from torchvision import transforms
-from torchvision.datasets import CIFAR10
 from torchvision.utils import save_image
 from tqdm import tqdm
+import torch
+from einops import rearrange
+from datasets.cifar10 import get_cifar10_dataloader
+from checkpoint_entries import checkpoint_entries
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
-
-from datasets.cifar10 import get_cifar10_dataloader
-from models.early_exit import EarlyExitUViT, OldEarlyExitUViT
-from models.uvit import UViT
-from utils.train_utils import (
-    get_noise_scheduler,
-    seed_everything,
-)
-
 
 def get_device():
     if torch.cuda.is_available():
@@ -38,48 +29,57 @@ def get_device():
 
 
 def get_args():
-    parser = argparse.ArgumentParser(description="Sampling parameters")
-    # Default parameters from https://github.com/baofff/U-ViT/blob/main/configs/cifar10_uvit_small.py
+    parser = argparse.ArgumentParser(description="CMMD evaluation parameters")
 
-    parser.add_argument("--start_seed", type=int, default=1, help="Start seed")
-    parser.add_argument("--end_seed", type=int, default=9, help="End seed")
+    # If you already have both the dataset images and the sampled images on which you want to compute the CMMD score, 
+    # pass these arguments: load_from_folder, samples_directory and dataset_directory.
+    # ! Make sure the 2 folders contain the same amount of images.
+   
     parser.add_argument(
-        "--num_timesteps", type=int, default=1000, help="Number of timesteps"
-    )
-    parser.add_argument("--use_amp", action="store_true", default=False, help="Use AMP")
-    parser.add_argument("--amp_dtype", type=str, default="bf16", help="AMP data type")
-    parser.add_argument(
-        "--max_grad_norm", type=float, default=1.0, help="Max gradient norm"
+        "--load_from_folder", 
+        action="store_true",
+        help="Load from folder"
     )
 
     parser.add_argument(
-        "--sample_height",
-        type=int,
-        default=32,
-        help="Height of the images sampled for logging",
-    )
-    parser.add_argument(
-        "--sample_width",
-        type=int,
-        default=32,
-        help="Width of the images sampled for logging",
+        "--samples_directory",
+        type=str,
+        default=None,
+        help="Path to the directory where to save the images from the model",
     )
 
-    # Checkpointing
     parser.add_argument(
-        "--load_checkpoint_path",
+        "--dataset_directory",
+        type=str,
+        default=None,
+        help="Path to the directory where to save the images from the dataset",
+    )
+
+    # Otherwise, if you don't have the images already, for the samples images you have 2 options:
+    # 1. Sample images from a checkpointed model.
+    # 2. Read pt log files and save the corresponding images.
+    # Note: in this case you need to pass the above arguments (samples_directory and dataset_directory) as directories where to save the sampled/original images.
+
+    # For option 1, pass these arguments:
+    parser.add_argument(
+        "--checkpoint_entry_name",
         type=str,
         default=None,
         help="Checkpoint path for loading the training state",
     )
 
-    # Model
     parser.add_argument(
-        "--model",
-        type=str,
-        default="deediff_uvit",
-        choices=["uvit", "deediff_uvit"],
-        help="Model name",
+        "--n_samples",
+        type=int,
+        default=100,
+        help="Number of images to save from the dataset and/or sample from the model",
+    )
+
+    parser.add_argument(
+        "--batch_size",
+        type=int,
+        default=8,
+        help="Batch size for sampling",
     )
 
     parser.add_argument(
@@ -89,18 +89,15 @@ def get_args():
         help="Early exit threshold",
     )
 
+    # For option 2, pass these arguments:
     parser.add_argument(
-        "--load_from_folder", action="store_true", help="Load from folder"
+        "--samples_pt_directory",
+        type=str,
+        default=None,
+        help="Path to the directory where to save the images from the model",
     )
 
-    # Benchmarking
-    parser.add_argument(
-        "--benchmarking",
-        action="store_true",
-        help="True if we want to benchmark the sampler",
-    )
-
-    # CMMD parameters
+    # CMMD metric specific parameters
     parser.add_argument(
         "--cmmd_batch_size",
         type=int,
@@ -111,7 +108,7 @@ def get_args():
     parser.add_argument(
         "--cmmd_max_count",
         type=int,
-        default=5,
+        default=1024,
         help="Maximum number of images to read from each directory.",
     )
 
@@ -125,15 +122,15 @@ alphas_bar_previous = torch.cat([torch.tensor([1.0], device=device), alphas_bar[
 betas_tilde = betas * (1 - alphas_bar_previous) / (1 - alphas_bar)
 
 def sample(threshold, model):
-    bs = 8
+    args = get_args()
     torch.manual_seed(0)
 
-    x = torch.randn(bs, 3, 32, 32).to(device)
+    x = torch.randn(args.batch_size, 3, 32, 32).to(device)
     error_prediction_by_timestep = torch.zeros(1000, 13)
-    indices_by_timestep = torch.zeros(1000, bs)
+    indices_by_timestep = torch.zeros(1000, args.batch_size)
     for t in tqdm(range(1000, 0, -1)):
         with torch.no_grad():
-            time_tensor = t / 1000 * torch.ones(bs, device=device)
+            time_tensor = t / 1000 * torch.ones(args.batch_size, device=device)
             epsilon, classifier_outputs, outputs = model(x, time_tensor)
 
         outputs = torch.stack(outputs + [epsilon])
@@ -143,7 +140,7 @@ def sample(threshold, model):
 
         # Simulate early exit with a global threshold
         indices = torch.argmax((classifier_outputs <= threshold).int(), dim=0)
-        epsilon = outputs[indices, torch.arange(bs)]
+        epsilon = outputs[indices, torch.arange(args.batch_size)]
 
         # Log for visualization
         error_prediction_by_timestep[t - 1] = classifier_outputs.mean(axis=1)[:13]
@@ -161,62 +158,55 @@ def sample(threshold, model):
 
     return x
 
-def save_cifar10_images(directory):
-    args = get_args()
+def save_cifar10_images(directory, num_images):
     # Ensure the output directory exists
     os.makedirs(directory, exist_ok=True)
 
     dataloader = get_cifar10_dataloader(batch_size=1, seed=0)
 
-    for seed in range(args.start_seed, args.end_seed):
-        x, _ = next(iter(dataloader))  # x.shape = [1, 3, 32, 32]
-        # File path to save the image, e.g., 'original_data/0.png'
-        filename = os.path.join(directory, f"{seed}.png")
-        # Save image; 'save_image' expects a batch dimension, so use 'unsqueeze(0)'
+    for i in range(num_images):
+        x, _ = next(iter(dataloader))  
+        filename = os.path.join(directory, f"{i}.png")
         save_image(x, filename)
 
-def save_cifar10_sampled_images(directory):
+def save_cifar10_sampled_images(output_directory):
     args = get_args()
     device = get_device()
 
-    uvit = UViT(
-        img_size=32,
-        patch_size=2,
-        embed_dim=512,
-        depth=12,
-        num_heads=8,
-        mlp_ratio=4,
-        qkv_bias=False,
-        mlp_time_embed=False,
-        num_classes=-1,
-    )
+    # Ensure the output directory exists
+    os.makedirs(output_directory, exist_ok=True)
 
-    model = OldEarlyExitUViT(uvit=uvit, classifier_type="attention_probe", exit_threshold=args.exit_threshold)
+    num_images = 0
 
-    if args.load_checkpoint_path:
-        state_dict = torch.load(args.load_checkpoint_path, device)
-        if "model_state_dict" in state_dict:
-            model.load_state_dict(state_dict["model_state_dict"])
-        else:
-            model.load_state_dict(state_dict)
-    else:
-        print("The loaded checkpoint path is wrong or not provided!")
-        exit(1)
+    if args.checkpoint_entry_name:
+        model = checkpoint_entries[args.checkpoint_entry_name].get_model()
 
-    model = model.eval()
-    model = model.to(device)
+        model = model.eval()
+        model = model.to(device)
 
-    noise_scheduler = get_noise_scheduler(args)
+        for i in range(args.n_samples):
+            x = sample(args.exit_threshold, model)
+            x = (x + 1) / 2
 
-    os.makedirs(directory, exist_ok=True)
+            filename = os.path.join(output_directory, f"{i}.png")
+            save_image(x, filename)
 
-    for seed in range(args.start_seed, args.end_seed):
-        x = sample(args.exit_threshold, model)
-        x = (x + 1) / 2
+        num_images = args.n_samples
+    
+    elif args.samples_pt_directory:
+        files = [f for f in os.listdir(args.samples_pt_directory) if f.endswith('.pt')]
+        for j, file in enumerate(files):
+            samples = torch.load(os.path.join(args.samples_pt_directory, file), map_location="cpu")
+            samples = (samples + 1) / 2
+            samples = rearrange(samples, "b c h w -> b h w c")
 
-        # File path to save the image, e.g., 'generated_data/0.png'
-        filename = os.path.join(directory, f"{seed}.png")
-        save_image(x, filename)
+            for i, s in enumerate(samples):
+                img = (s.numpy() * 255).astype('uint8') 
+                img = Image.fromarray(img) 
+                img.save(os.path.join(output_directory, f"sample_{i + 128 * j}.png"))
+                num_images += 1
+    
+    return num_images
 
 
 def compute_cmmd(ref_dir, eval_dir, ref_embed_file=None, batch_size=32, max_count=-1):
@@ -251,24 +241,14 @@ def compute_cmmd(ref_dir, eval_dir, ref_embed_file=None, batch_size=32, max_coun
     val = distance.mmd(ref_embs, eval_embs)
     return val.numpy()
 
-
 if __name__ == "__main__":
     args = get_args()
 
-    # Directory for original images
-    output_dir_original = "./Generated_samples/CIFAR10/original_data"
-
-    # Directory for sampled images
-    output_dir_model = "./Generated_samples/CIFAR10/generated_data"
-
     if args.load_from_folder == False:
-        save_cifar10_images(output_dir_original)
-        print(f"All CIFAR10 images have been saved in '{output_dir_original}'.")
-
-        save_cifar10_sampled_images(output_dir_model)
-        print(f"All CIFAR10 images have been saved in '{output_dir_original}'.")
-
+        num_images = save_cifar10_sampled_images(args.samples_directory)
+        save_cifar10_images(args.dataset_directory, num_images)
+        
     print(
         "The CMMD value is: "
-        f" {compute_cmmd(output_dir_original, output_dir_model, batch_size=args.cmmd_batch_size, max_count=args.cmmd_max_count):.3f}"
+        f" {compute_cmmd(args.dataset_directory, args.samples_directory, batch_size=args.cmmd_batch_size, max_count=args.cmmd_max_count):.3f}"
     )
