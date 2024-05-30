@@ -26,7 +26,7 @@ The mean and the variance of the distribution are parametrized with a variance s
 
 The reverse process models the distribution of $\mathbf X_{t-1} | \mathbf X_t$, which implies not only representing the marginal distribution of $\mathbf X_0$ but also being able to integrate over it. Thus, it is not possible to calculate the conditional distribution directly, and as such it is approximated with another Gaussian distribution:
 
-$$p_{\boldsymbol{\theta}} \left( \mathbf x_{t-1} \mid \mathbf x_t \right) := \mathcal{N} \left( \mathbf x_{t-1} ; \boldsymbol{\mu}_{\boldsymbol{\theta}} \left( \mathbf x_t, t \right), \mathbf \Sigma_{\boldsymbol{\theta}} \left( \mathbf x_t, t \right) \right) \qquad \qquad \text{(Eq. 2)}$$
+$$p_{\boldsymbol{\theta}} \left( \mathbf x_{t-1} \mid \mathbf x_t \right) := \mathcal{N} \left( \mathbf x_{t-1} ; \boldsymbol{\mu}_ {\boldsymbol{\theta}} \left( \mathbf x_t, t \right), \mathbf \Sigma_{\boldsymbol{\theta}} \left( \mathbf x_t, t \right) \right) \qquad \qquad \text{(Eq. 2)}$$
 
 The goal is for $p_{\boldsymbol{\theta}} \left( \mathbf x_{t-1} \mid \mathbf x_t \right)$ to resemble $q\left(\mathbf x_{t - 1} \mid \mathbf x_t, x_0 \right)$. This is accomplished by keeping $\mathbf \Sigma_{\boldsymbol{\theta}} \left( \mathbf x_t, t \right)$ fixed at $\tilde \beta_t \mathbf I$, where $\tilde \beta_t = \frac{1 - \bar \alpha_{t - 1}}{1 - \bar \alpha_t} \beta_t,$ and computing $\boldsymbol \mu_{\boldsymbol{\theta}} \left( \mathbf x_t, t \right)$ from $\boldsymbol{\epsilon}_{\boldsymbol{\theta}} \left( \mathbf x_t, t \right)$, an estimation of the noise that should be added to $\mathbf x_0$ to get $\mathbf x_t$:
 
@@ -71,14 +71,14 @@ In the context of classification, for example, one can add intermediate exits in
 
 $$
 \hat y= \begin{cases} 
-\text{arg max } \mathbf{\hat y}_1, & \text{if} & \text{entropy}(\mathbf{\hat y}_1) < \tau_1, \\  
-\text{arg max } \mathbf{\hat y}_2, & \text{if} & \text{entropy}(\mathbf{\hat y}_2) < \tau_2,\\ 
+\text{arg max } \mathbf{\hat y}_1, & \text{if} & \text{entropy}(\mathbf{\hat y}_1) < \delta_1, \\  
+\text{arg max } \mathbf{\hat y}_2, & \text{if} & \text{entropy}(\mathbf{\hat y}_2) < \delta_2,\\ 
 & ... & \\
-\text{arg max } \mathbf{\hat y}_L, & \text{if} & \text{entropy}(\mathbf{\hat y}_L) < T_n.
+\text{arg max } \mathbf{\hat y}_L, & \text{if} & \text{entropy}(\mathbf{\hat y}_L) < \delta_n.
 \end{cases}
 $$
 
-where $\mathbf{y}_i$ is vector of class probabilities and $T_i$ the exit threshold at exit layer $i$. The entropy function is used here to measure how certain the model is about the classification decision in that layer.
+where $\mathbf{y}_i$ is vector of class probabilities and $\delta_i$ the exit threshold at exit layer $i$. The entropy function is used here to measure how certain the model is about the classification decision in that layer.
 
 Early-exiting strategies are potentially applicable to improve efficiency in diffusion models, as different denoising steps may demand varying amounts of computation. Nevertheless, traditional early-exit frameworks are not applicable off-the-shelf in the context due to the time-series property and the lack of a natural confidence estimation measure, and thus other modifications are needed. An example of previous work based on this concept is [10], where the authors propose a pre-defined time-dependent exit schedule. 
 
@@ -143,7 +143,7 @@ During inference, early exit is then achieved by comparing the estimated uncerta
 To mitigate the information loss that occurs when not utilizing the full model, the authors also propose an uncertainty-aware layer-wise loss. They draw inspiration from previous work, with one important modification, a weighting term to give more importance to the output layers where the uncertainty is lower (i.e., early exit will happen).
 
 $$\begin{align} 
-\mathcal{L}_ {U A L}^{t}=\sum_{i=0}^{N-1}\left(1-u_{i, t}\right) \times\left\|\mathbf{g}_{i}\left(L_{i, t}\right)-\boldsymbol \epsilon_t\right\|^{2}, & \qquad \qquad \text{(Eq. 8)}
+\mathcal{L}_ {U A L}^{t}=\sum_{i=0}^{N-1}\left(1-u_{i, t}\right) \times\left\|\mathbf{g}_ {i}\left(L_{i, t}\right)-\boldsymbol \epsilon_t\right\|^{2}, & \qquad \qquad \text{(Eq. 8)}
 \end{align}$$
 
 where $u_{i, t}$ is the uncertainty value estimated in each layer.
@@ -343,7 +343,7 @@ Figure 4 provides a visualization of the difference between the best and worst p
 
 <table align="center">
   <tr align="center">
-      <td><img src="img/figure4.svg" width=800></td>
+      <td><img src="img/figure4.svg" width=650></td>
   </tr>
   <tr align="left">
     <td colspan=2><b>Figure 4.</b> Image quality comparison between worst and best models with respect to the FID score. We used the same threshold of 0.075 for both methods. </td>
@@ -386,7 +386,7 @@ Across all types of UEMs, we note a greater layer ratio reduction for the fine-t
 
 <table align="center">
   <tr align="center">
-      <td><img src="img/Figure5.png" width=800></td>
+      <td><img src="img/Figure5.png" width=650></td>
   </tr>
   <tr align="left">
     <td colspan=2><b>Figure 5.</b> Comparison between images generated from models with MLP per layer, with a fine-tuned and a frozen backbone, and a fixed threshold of 0.075. </td>
@@ -453,7 +453,7 @@ Regardless of training strategy or UEM implementation, we observe a similar tren
 
 <table align="center">
   <tr align="center">
-      <td><img src="img/layer.svg" width=800></td>
+      <td><img src="img/layer.svg" width=300></td>
   </tr>
   <tr align="left">
     <td colspan=2><b>Figure 6.</b> Early-exit layer per timestep for different thresholds and UEM implementations. Results are averaged over 1024 sampled images. </td>
@@ -464,7 +464,7 @@ This makes sense because the model is trained with $\mathbf{x}_t = \sqrt{\bar \a
 
 <table align="center">
   <tr align="center">
-      <td><img src="img/coefficients.svg" width=800></td>
+      <td><img src="img/coefficients.svg" width=300></td>
   </tr>
   <tr align="left">
     <td colspan=2><b>Figure 7.</b> Evolution of Diffusion coefficients across sampling timesteps. </td>
@@ -475,7 +475,7 @@ Figure 8 further explains this. Our intuition is that in the first sampling step
 
 <table align="center">
   <tr align="center">
-      <td><img src="img/ee-explanation.svg" width=800></td>
+      <td><img src="img/ee-explanation.svg" width=650></td>
   </tr>
   <tr align="left">
     <td colspan=2><b>Figure 8.</b> Example of input and expected output of the backbone architecture for different timesteps. </td>
@@ -575,7 +575,7 @@ In this blog post, we have thoroughly analyzed the paper "DeeDiff: Dynamic Uncer
 
 We found that adopting a single UEM per layer, shared across all timesteps, represents an optimal approach. Additionally, freezing the backbone during fine-tuning of the uncertainty estimation and projection heads leads to better image quality compared to fine-tuning everything, albeit with a slight sacrifice in efficiency gains. 
 
-Furthermore, our investigation into exit trends revealed that early-exit only happens in the first layers for the early sampling steps and in the last layers for the latest steps. It would be desirable to make the model early-exit in a more variety of layers across all timesteps.
+Our investigation into early-exit trends is probably our bigger contribution, as we show that early-exit only happens in almost-trivial cases. It would be desirable to make the model early-exit in a wider variety of layers across all timesteps.
 
 Overall, our work provides valuable insights into accelerating the inference of diffusion models while maintaining high-quality image generation, contributing to the ongoing research in this domain. 
 
