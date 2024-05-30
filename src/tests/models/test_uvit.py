@@ -2,6 +2,7 @@ from pathlib import Path
 
 import pytest
 import torch
+
 from models.uvit import UViT
 
 celeba_config = dict(

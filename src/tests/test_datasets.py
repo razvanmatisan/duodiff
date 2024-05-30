@@ -3,6 +3,7 @@ from pathlib import Path
 
 import pytest
 import torch
+
 from datasets import get_celeba_dataloader, get_cifar10_dataloader
 
 

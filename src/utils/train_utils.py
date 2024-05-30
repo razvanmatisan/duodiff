@@ -4,13 +4,14 @@ from typing import Sequence
 
 import numpy as np
 import torch
-from datasets.celeba import get_celeba_dataloader
-from datasets.cifar10 import get_cifar10_dataloader
 from ddpm_core import NoiseScheduler
 from diffusers.optimization import get_cosine_schedule_with_warmup
+from torch.utils.data import DataLoader
+
+from datasets.celeba import get_celeba_dataloader
+from datasets.cifar10 import get_cifar10_dataloader
 from models.early_exit import EarlyExitUViT
 from models.uvit import UViT
-from torch.utils.data import DataLoader
 
 
 def get_model(args):
@@ -70,9 +71,13 @@ def get_optimizer(model, args):
 
 def get_dataloader(args):
     if args.dataset == "cifar10":
-        return get_cifar10_dataloader(batch_size=args.batch_size, seed=args.seed, download=args.download)
+        return get_cifar10_dataloader(
+            batch_size=args.batch_size, seed=args.seed, download=args.download
+        )
     elif args.adataset == "celeba":
-        return get_celeba_dataloader(batch_size=args.batch_size, seed=args.seed, download=args.download)
+        return get_celeba_dataloader(
+            batch_size=args.batch_size, seed=args.seed, download=args.download
+        )
 
 
 def get_noise_scheduler(args):

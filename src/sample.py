@@ -1,9 +1,10 @@
 import argparse
 
 import torch
+from torch.utils.tensorboard import SummaryWriter
+
 from models.early_exit import EarlyExitUViT
 from models.uvit import UViT
-from torch.utils.tensorboard import SummaryWriter
 from utils.train_utils import (
     get_noise_scheduler,
     seed_everything,
