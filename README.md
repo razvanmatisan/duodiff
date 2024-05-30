@@ -174,7 +174,18 @@ python src/FID_evaluation.py \
 For description of the arguments check out section CMMD above.
 
 ### Benchmarking
-TODO
+For computing the theoretical GFLOPs for the MLP probe, attention probe and output head, you can run the following script 
+
+```shell
+python src/benchmarking/get_gflops.py
+```
+
+For computing the average layer ratio and theoretical GFLOPs for each method, one can run the following script:
+```shell
+python src/benchmarking/compute_gflops_and_layer_ratio.py
+    --indices_by_timestep_directory ${indices_by_timestep_directory} \
+```
+The parameter ``indices_by_timestep_directory`` is the relative path to the folder which contains files in ``.pt`` format regarding the layers which early exit took place per timestep. These directories can be found in ``src/benchmarking/output``.
 
 
 ## Resources
