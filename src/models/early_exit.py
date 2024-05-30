@@ -1,9 +1,8 @@
 import torch
 import torch.nn.functional as F
 from einops import rearrange
-from torch import nn
-
 from models.uvit import UViT, timestep_embedding, unpatchify
+from torch import nn
 
 
 class OutputHead(nn.Module):
@@ -98,9 +97,7 @@ class OldEarlyExitUViT(nn.Module):
             [
                 AttentionProbe(embed_dim=uvit.embed_dim)
                 if classifier_type == "attention_probe"
-                else MLPProbe(
-                    embed_dim=self.uvit.embed_dim
-                )
+                else MLPProbe(embed_dim=self.uvit.embed_dim)
                 for _ in range(len(uvit.out_blocks))
             ]
         )
@@ -114,9 +111,7 @@ class OldEarlyExitUViT(nn.Module):
             [
                 AttentionProbe(embed_dim=uvit.embed_dim)
                 if classifier_type == "attention_probe"
-                else MLPProbe(
-                    embed_dim=self.uvit.embed_dim
-                )
+                else MLPProbe(embed_dim=self.uvit.embed_dim)
                 for _ in range(len(uvit.out_blocks))
             ]
         )
@@ -192,10 +187,6 @@ class OldEarlyExitUViT(nn.Module):
     @property
     def device(self):
         return next(self.parameters()).device
-
-
-
-
 
 
 class EarlyExitUViT(nn.Module):

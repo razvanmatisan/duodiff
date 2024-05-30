@@ -1,6 +1,5 @@
 import pytest
 import torch
-
 from models.early_exit import AttentionProbe, EarlyExitUViT, MLPProbe, OutputHead
 from models.uvit import UViT
 

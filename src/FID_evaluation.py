@@ -2,15 +2,14 @@ import argparse
 import os
 
 import torch
+from checkpoint_entries import checkpoint_entries
+from datasets.cifar10 import get_cifar10_dataloader
 from einops import rearrange
 from PIL import Image
 from torchmetrics.image.fid import FrechetInceptionDistance
 from torchvision import transforms
 from torchvision.utils import save_image
 from tqdm import tqdm
-
-from checkpoint_entries import checkpoint_entries
-from datasets.cifar10 import get_cifar10_dataloader
 
 
 def get_device():
@@ -26,15 +25,13 @@ def get_device():
 
 def get_args():
     parser = argparse.ArgumentParser(description="FID evaluation parameters")
-    
-    # If you already have both the dataset images and the sampled images on which you want to compute the FID score, 
+
+    # If you already have both the dataset images and the sampled images on which you want to compute the FID score,
     # pass these arguments: load_from_folder, samples_directory and dataset_directory.
     # ! Make sure the 2 folders contain the same amount of images.
-    
+
     parser.add_argument(
-        "--load_from_folder", 
-        action="store_true",
-        help="Load from folder"
+        "--load_from_folder", action="store_true", help="Load from folder"
     )
 
     parser.add_argument(
@@ -50,7 +47,6 @@ def get_args():
         default=None,
         help="Path to the directory where images from the original dataset are saved",
     )
-    
 
     # Otherwise, if you don't have the images already, for the samples images you have 2 options:
     # 1. Sample images from a checkpointed model.
@@ -63,7 +59,7 @@ def get_args():
         default=None,
         help="Checkpoint path for loading the training state",
     )
-   
+
     parser.add_argument(
         "--n_samples",
         type=int,
@@ -120,7 +116,7 @@ def save_cifar10_images(directory, num_images):
     images = []
 
     for i in range(num_images):
-        x, _ = next(iter(dataloader))  
+        x, _ = next(iter(dataloader))
         filename = os.path.join(directory, f"{i}.png")
         save_image(x, filename)
         images.append(x)
@@ -135,6 +131,7 @@ alphas = 1 - betas
 alphas_bar = torch.cumprod(alphas, dim=0)
 alphas_bar_previous = torch.cat([torch.tensor([1.0], device=device), alphas_bar[:-1]])
 betas_tilde = betas * (1 - alphas_bar_previous) / (1 - alphas_bar)
+
 
 def sample(threshold, model):
     args = get_args()
@@ -198,20 +195,23 @@ def save_cifar10_sampled_images(output_directory):
             save_image(x, filename)
 
     elif args.samples_pt_directory:
-        files = [f for f in os.listdir(args.samples_pt_directory) if f.endswith('.pt')]
+        files = [f for f in os.listdir(args.samples_pt_directory) if f.endswith(".pt")]
 
         for j, file in enumerate(files):
-            samples = torch.load(os.path.join(args.samples_pt_directory, file), map_location="cpu")
+            samples = torch.load(
+                os.path.join(args.samples_pt_directory, file), map_location="cpu"
+            )
             samples = (samples + 1) / 2
             samples = rearrange(samples, "b c h w -> b h w c")
 
             for i, s in enumerate(samples):
-                img = (s.numpy() * 255).astype('uint8') 
+                img = (s.numpy() * 255).astype("uint8")
                 samples.append(img)
-                img = Image.fromarray(img) 
+                img = Image.fromarray(img)
                 img.save(os.path.join(output_directory, f"sample_{i + 128 * j}.png"))
-                
+
     return samples
+
 
 def fid_evaluation(real_images, generated_images):
     fid = FrechetInceptionDistance(normalize=True)
@@ -246,6 +246,8 @@ if __name__ == "__main__":
         generated_images = read_from_folder(args.samples_directory)
     else:
         generated_images = save_cifar10_sampled_images(args.output_dir_model)
-        real_images = save_cifar10_images(args.output_dir_original, len(generated_images))
-        
+        real_images = save_cifar10_images(
+            args.output_dir_original, len(generated_images)
+        )
+
     fid_evaluation(real_images, generated_images)

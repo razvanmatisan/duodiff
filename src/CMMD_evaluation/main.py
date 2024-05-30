@@ -1,4 +1,3 @@
-
 import argparse
 import os
 import sys
@@ -8,15 +7,15 @@ import embedding
 import io_util
 import numpy as np
 import torch
+from checkpoint_entries import checkpoint_entries
+from datasets.cifar10 import get_cifar10_dataloader
 from einops import rearrange
 from PIL import Image
 from torchvision.utils import save_image
 from tqdm import tqdm
 
-from checkpoint_entries import checkpoint_entries
-from datasets.cifar10 import get_cifar10_dataloader
-
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
+
 
 def get_device():
     if torch.cuda.is_available():
@@ -32,14 +31,12 @@ def get_device():
 def get_args():
     parser = argparse.ArgumentParser(description="CMMD evaluation parameters")
 
-    # If you already have both the dataset images and the sampled images on which you want to compute the CMMD score, 
+    # If you already have both the dataset images and the sampled images on which you want to compute the CMMD score,
     # pass these arguments: load_from_folder, samples_directory and dataset_directory.
     # ! Make sure the 2 folders contain the same amount of images.
-   
+
     parser.add_argument(
-        "--load_from_folder", 
-        action="store_true",
-        help="Load from folder"
+        "--load_from_folder", action="store_true", help="Load from folder"
     )
 
     parser.add_argument(
@@ -115,12 +112,14 @@ def get_args():
 
     return parser.parse_args()
 
+
 device = get_device()
 betas = torch.linspace(1e-4, 0.02, 1000).to(device)
 alphas = 1 - betas
 alphas_bar = torch.cumprod(alphas, dim=0)
 alphas_bar_previous = torch.cat([torch.tensor([1.0], device=device), alphas_bar[:-1]])
 betas_tilde = betas * (1 - alphas_bar_previous) / (1 - alphas_bar)
+
 
 def sample(threshold, model):
     args = get_args()
@@ -159,6 +158,7 @@ def sample(threshold, model):
 
     return x
 
+
 def save_cifar10_images(directory, num_images):
     # Ensure the output directory exists
     os.makedirs(directory, exist_ok=True)
@@ -166,9 +166,10 @@ def save_cifar10_images(directory, num_images):
     dataloader = get_cifar10_dataloader(batch_size=1, seed=0)
 
     for i in range(num_images):
-        x, _ = next(iter(dataloader))  
+        x, _ = next(iter(dataloader))
         filename = os.path.join(directory, f"{i}.png")
         save_image(x, filename)
+
 
 def save_cifar10_sampled_images(output_directory):
     args = get_args()
@@ -193,20 +194,22 @@ def save_cifar10_sampled_images(output_directory):
             save_image(x, filename)
 
         num_images = args.n_samples
-    
+
     elif args.samples_pt_directory:
-        files = [f for f in os.listdir(args.samples_pt_directory) if f.endswith('.pt')]
+        files = [f for f in os.listdir(args.samples_pt_directory) if f.endswith(".pt")]
         for j, file in enumerate(files):
-            samples = torch.load(os.path.join(args.samples_pt_directory, file), map_location="cpu")
+            samples = torch.load(
+                os.path.join(args.samples_pt_directory, file), map_location="cpu"
+            )
             samples = (samples + 1) / 2
             samples = rearrange(samples, "b c h w -> b h w c")
 
             for i, s in enumerate(samples):
-                img = (s.numpy() * 255).astype('uint8') 
-                img = Image.fromarray(img) 
+                img = (s.numpy() * 255).astype("uint8")
+                img = Image.fromarray(img)
                 img.save(os.path.join(output_directory, f"sample_{i + 128 * j}.png"))
                 num_images += 1
-    
+
     return num_images
 
 
@@ -242,13 +245,14 @@ def compute_cmmd(ref_dir, eval_dir, ref_embed_file=None, batch_size=32, max_coun
     val = distance.mmd(ref_embs, eval_embs)
     return val.numpy()
 
+
 if __name__ == "__main__":
     args = get_args()
 
     if not args.load_from_folder:
         num_images = save_cifar10_sampled_images(args.samples_directory)
         save_cifar10_images(args.dataset_directory, num_images)
-        
+
     print(
         "The CMMD value is: "
         f" {compute_cmmd(args.dataset_directory, args.samples_directory, batch_size=args.cmmd_batch_size, max_count=args.cmmd_max_count):.3f}"
