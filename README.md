@@ -34,63 +34,81 @@ The first time:
 
 After that, be sure that all the tests are passing before a commit. Otherwise, GitHub Actions will complain ;) You can check by running
 ```bash
-python -m pytest src/tests
+cd src
+python -m pytest tests
 ```
 
 ## Repository structure
 - `demos/`: Demos for visualising early stopping diffusion.
 - `src/`: Code.
     - `CMMD_evaluation/`: Code for calculating the CMMD score of generated samples.
-    - `Generated_samples/`: Directories with generated samples.
+    - `samples/`: Directories with generated samples.
     - `datasets/`: Dataset-specific dataloaders.
     - `models/`: Model definitions.
     - `scripts/`: Scripts for training, generation, evaluation and benchmarking.
     - `snellius/`: Files for running experiments on Snellius.
-    - `test/`: Unit tests.
+    - `tests/`: Unit tests.
     - `utils/`:
         - `field_utils.py` Getters for time and space embeddings.
         - `train_utils.py` Getters for models, optimizers, dataloaders, etc.
     - `FID_evaluation.py`: Code for calculating the FID score of generated samples.
-    - `benchmark.py`: Code for benchmarking models.
+    - `get_flops.py`: Code for computing theoretical GFLOPs.
+    - `compute_gflops_and_layer_ratio.py`: Code for computing the average layer ratio and theoretical GFLOP.
     - `ddpm_core.py`: Code of the DDPM sampler.
     - `requirements.txt`: File with requirements for setting up the virtual environment.
-    - `sample.py`: Code for sampling images.
     - `train.py`: Code for training models.
 - `blogpost.md`: Blogpost about the project.
 
 ## Running experiments
+All of the experiments should be run inside `src` directory.
+```
+cd src
+```
 
 ### Training
-Training models is done using `train.py` script.
+Training the models is done using `train.py` script.
 Full specification of the script can be found with `python train.py --help` command. Below are sample commands for running training with only the essential arguments.
 
 #### UViT backbone
 
 Command for training the UViT backbone.
 ```shell
+bash scripts/train_uvit.sh
+```
+or
+```shell
 python train.py \
     --model uvit \
-    --n_steps ${number_of_training_steps} \
-    --batch_size ${batch_size} \
+    --n_steps 100000 \
+    --batch_size 128 \
 ```
-- `number_of_training_steps`: Number of iterations over the dataloader.
-- `batch_size`: Batch size.
 
 #### Early-exit models
-Below are scripts for training early-exit diffusion model *DeeDiff*.
-Each of the commands can 
+Command for training the a DeeDiff model:
+```shell
+bash scripts/train_deediff.sh
+```
+or
+```
+python train.py \
+    --model deediff_uvit \
+    --n_steps 100000 \
+    --batch_size 128 \
+    --classifier_type attention_probe \
+    --normalize_timesteps
+```
 
-Command for training DeeDiff:
+Below is a specification of how to run training with other settings.
 ```shell
 python train.py \
     --model deediff_uvit \
     --n_steps ${number_of_training_steps} \
     --batch_size ${batch_size} \
     --classifier_type ${classifier_type} \
+    --normalize_timesteps \
     [--load_backbone ${checkpoint_path} \]
     [--freeze_backbone \]
     [--use_unweighted_loss \]
-    [--normalize_timesteps \]
 ```
 
 - `number_of_training_steps`: Number of iterations over the dataloader.
@@ -102,90 +120,59 @@ python train.py \
     - `mlp_probe_per_layer_per_timestep`: Separate MLP probe for each UViT layer, at each time step (nothing is shared).
 - `--freeze_backbone`: If present, then freeze the UViT backbone (train only the classifiers probes).
 - `--use_unweighted_loss`: If present, add the unweighted loss to the remaining losses.
-- `--normalize_timesteps`: If present, normalize timesteps from $[1, T]$ to $[0, 1]$.
 - (optional) `checkpoint_path`: Path to the checkpoint with UViT weights. If not specified, then train DeeDiff from scratch.
-
-### Generation
-TODO
-```shell
-python src/sample.py \
-    --load_checkpoint_path ${checkpoint_path} \
-    --exit_threshold ${exit_threshold} \
-    --n_samples ${n_samples} \ 
-    --sample_seed ${seed}
-```
 
 ### Evaluation
 
 #### CMMD
-Command for calculating the CMMD score: 
+Command for generating samples and calculating the CMMD score: 
 ```shell
-python src/CMMD_evaluation/main.py \
-    --load_from_folder \
-    --cmmd_batch_size ${cmmd_batch_size} \
-    --cmmd_max_count ${cmmd_max_count}
+bash scripts/cmmd_evaluation.sh
 ```
+or
+```shell
+python CMMD_evaluation/main.py \
+    --checkpoint_entry_name frozenBackbone_attention_3losses \
+    --exit_threshold 0.05 \
+    --cmmd_batch_size 32 \
+    --cmmd_max_count 10
+```
+
 - `cmmd_batch_size`: Batch size for embedding generation.
 - `cmmd_max_count`: Maximum number of images to read from each directory.
 
-Command for generating samples and calculating their CMMD score:
-```shell
-python src/CMMD_evaluation/main.py \
-    --model ${model} \
-    --load_checkpoint_path ${load_checkpoint_path} \
-    --exit_threshold ${exit_threshold} \
-    --start_seed ${start_seed} \
-    --end_seed ${end_seed} \
-    --cmmd_batch_size ${cmmd_batch_size} \
-    --cmmd_max_count ${cmmd_max_count}
-```
-Optional, if the samples need to be generated:
-- `model`: Model used to generate samples. 
-- `load_checkpoint_path`: Path to a checkpoint with model weights.
-- `exit_threshold`: Exit threshold if DeeDiff is used.
-- `start_seed`: Start seed.
-- `end_seed`: End seed.
-
-We generate a batch of samples for each seed from range [`start_seed`, `end_seed`].
-Before generating each batch we set the seed to make sure we can compare the samples generated by different models or sets of hyperparameters.
-
-TODO: 
-- Add an argument with the path of generated samples.
-- Separate evaluation from generation.
-
-
 #### FID
-Command for calculating the FID score:
+Command for generating samples and calculating the FID score: 
 ```shell
-python src/FID_evaluation.py \
-    --load_from_folder
+bash scripts/fid_evaluation.sh
 ```
-
-Command for generating samples and calculating their CMMD score.
+or
 ```shell
-python src/FID_evaluation.py \
-    --model $model \
-    --load_checkpoint_path ${load_checkpoint_path} \
-    --exit_threshold ${exit_threshold} \
-    --start_seed ${start_seed} \
-    --end_seed ${end_seed}
+python FID_evaluation.py \
+    --checkpoint_entry_name frozenBackbone_attention_3losses \
+    --exit_threshold 0.05
 ```
-
-For description of the arguments check out section CMMD above.
 
 ### Benchmarking
 For computing the theoretical GFLOPs for the MLP probe, attention probe and output head, you can run the following script 
 
 ```shell
-python src/benchmarking/get_gflops.py
+python get_gflops.py
+```
+
+Example script for computing the average layer ratio and theoretical GFLOPs:
+```shell
+python compute_gflops_and_layer_ratio.py \
+    --indices_by_timestep_directory benchmarking/output/attention_frozen/indices_by_timestep
 ```
 
 For computing the average layer ratio and theoretical GFLOPs for each method, one can run the following script:
 ```shell
-python src/benchmarking/compute_gflops_and_layer_ratio.py
+python compute_gflops_and_layer_ratio.py
     --indices_by_timestep_directory ${indices_by_timestep_directory} \
 ```
 The parameter ``indices_by_timestep_directory`` is the relative path to the folder which contains files in ``.pt`` format regarding the layers which early exit took place per timestep. These directories can be found in ``src/benchmarking/output``. Currently, we uploaded only the ``.pt`` files for the model that uses an attention probe and a frozen backbone during training. The reason why we did not include them for all methods is because the files are pretty large. If one would need the files for the other methods, please contact us.
+
 
 ## Resources
 ### DeeDiff

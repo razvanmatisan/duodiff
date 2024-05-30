@@ -576,7 +576,7 @@ Overall, our work provides valuable insights into accelerating the inference of 
 - Daniel: early-exit model implementation and visualizations, sampling.
 - Razvan: DeeDiff loss functions implementation, benchmarking, ablations related to linear/attention probes, visualizations.
 - Alejandro: sampling, blogpost, poster.
-- Janusz: training loop.
+- Janusz: training loop, checkpointing, README.
 - Ana: DeeDiff loss functions implementation, CMMD/FID and layer ratio analysis, blogpost.
 
 Note: we took the [U-ViT repository](https://github.com/baofff/U-ViT) and some base code provided by our TA (Tin Hadži) as inspiration for the implementation of the backbone model (U-ViT-Small). The rest of the implementation was developed by us.
