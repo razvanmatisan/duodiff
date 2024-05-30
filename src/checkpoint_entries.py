@@ -2,10 +2,9 @@ import subprocess
 from dataclasses import dataclass
 
 import torch
-from torch import nn
-
 from models.early_exit import EarlyExitUViT, OldEarlyExitUViT
 from models.uvit import UViT
+from torch import nn
 
 
 @dataclass

@@ -1,8 +1,7 @@
 import torch
-from ptflops import get_model_complexity_info
-
 from models.early_exit import AttentionProbe, EarlyExitUViT, MLPProbe, OutputHead
 from models.uvit import UViT
+from ptflops import get_model_complexity_info
 
 
 def get_gflops(model, x, t=None):

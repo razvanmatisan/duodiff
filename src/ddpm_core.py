@@ -1,9 +1,8 @@
 from collections import defaultdict
 
 import torch
-from tqdm import tqdm
-
 from benchmark import get_gflops
+from tqdm import tqdm
 
 
 def early_exit(lambda_threshold, model_output, earliest_exit_index, verbose=False):

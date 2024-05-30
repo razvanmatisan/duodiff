@@ -23,10 +23,10 @@ jobs:
       with:
         python-version: '3.11'
         cache: 'pip'
-    - run: pip install -r requirements.txt
+    - run: pip install -r src/requirements.txt
     - name: Lint with Ruff
       run: |
         ruff check --select I --output-format=github .
     - name: Test with pytest
       run: |
-        python -m pytest tests
+        python -m pytest src/tests

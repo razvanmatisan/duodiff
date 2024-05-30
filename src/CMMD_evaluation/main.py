@@ -1,16 +1,20 @@
 import argparse
 import os
+import sys
 
+import distance
+import embedding
+import io_util
+import numpy as np
 import torch
+from checkpoint_entries import checkpoint_entries
+from datasets.cifar10 import get_cifar10_dataloader
 from einops import rearrange
 from PIL import Image
-from torchmetrics.image.fid import FrechetInceptionDistance
-from torchvision import transforms
 from torchvision.utils import save_image
 from tqdm import tqdm
 
-from checkpoint_entries import checkpoint_entries
-from datasets.cifar10 import get_cifar10_dataloader
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
 
 def get_device():
@@ -25,36 +29,34 @@ def get_device():
 
 
 def get_args():
-    parser = argparse.ArgumentParser(description="FID evaluation parameters")
-    
-    # If you already have both the dataset images and the sampled images on which you want to compute the FID score, 
+    parser = argparse.ArgumentParser(description="CMMD evaluation parameters")
+
+    # If you already have both the dataset images and the sampled images on which you want to compute the CMMD score,
     # pass these arguments: load_from_folder, samples_directory and dataset_directory.
     # ! Make sure the 2 folders contain the same amount of images.
-    
+
     parser.add_argument(
-        "--load_from_folder", 
-        action="store_true",
-        help="Load from folder"
+        "--load_from_folder", action="store_true", help="Load from folder"
     )
 
     parser.add_argument(
         "--samples_directory",
         type=str,
         default=None,
-        help="Path to the directory where images sampled from a model are saved",
+        help="Path to the directory where to save the images from the model",
     )
 
     parser.add_argument(
         "--dataset_directory",
         type=str,
         default=None,
-        help="Path to the directory where images from the original dataset are saved",
+        help="Path to the directory where to save the images from the dataset",
     )
-    
 
     # Otherwise, if you don't have the images already, for the samples images you have 2 options:
     # 1. Sample images from a checkpointed model.
     # 2. Read pt log files and save the corresponding images.
+    # Note: in this case you need to pass the above arguments (samples_directory and dataset_directory) as directories where to save the sampled/original images.
 
     # For option 1, pass these arguments:
     parser.add_argument(
@@ -63,7 +65,7 @@ def get_args():
         default=None,
         help="Checkpoint path for loading the training state",
     )
-   
+
     parser.add_argument(
         "--n_samples",
         type=int,
@@ -93,40 +95,22 @@ def get_args():
         help="Path to the directory where to save the images from the model",
     )
 
-    # Lastly, for both option 1 and 2, you need to pass the directories where to save these images.
+    # CMMD metric specific parameters
     parser.add_argument(
-        "--output_dir_original",
-        type=str,
-        default="output/original",
-        help="Path to the directory where to save the images from the dataset",
+        "--cmmd_batch_size",
+        type=int,
+        default=32,
+        help="Batch size for embedding generation.",
     )
 
     parser.add_argument(
-        "--output_dir_model",
-        type=str,
-        default="output/model",
-        help="Path to the directory where to save the images from the model",
+        "--cmmd_max_count",
+        type=int,
+        default=1024,
+        help="Maximum number of images to read from each directory.",
     )
 
     return parser.parse_args()
-
-
-def save_cifar10_images(directory, num_images):
-    # Ensure the output directory exists
-    os.makedirs(directory, exist_ok=True)
-
-    dataloader = get_cifar10_dataloader(batch_size=1, seed=0)
-
-    images = []
-
-    for i in range(num_images):
-        x, _ = next(iter(dataloader))  
-        filename = os.path.join(directory, f"{i}.png")
-        save_image(x, filename)
-        images.append(x)
-
-    images = torch.cat(images, dim=0)
-    return images
 
 
 device = get_device()
@@ -135,6 +119,7 @@ alphas = 1 - betas
 alphas_bar = torch.cumprod(alphas, dim=0)
 alphas_bar_previous = torch.cat([torch.tensor([1.0], device=device), alphas_bar[:-1]])
 betas_tilde = betas * (1 - alphas_bar_previous) / (1 - alphas_bar)
+
 
 def sample(threshold, model):
     args = get_args()
@@ -174,6 +159,18 @@ def sample(threshold, model):
     return x
 
 
+def save_cifar10_images(directory, num_images):
+    # Ensure the output directory exists
+    os.makedirs(directory, exist_ok=True)
+
+    dataloader = get_cifar10_dataloader(batch_size=1, seed=0)
+
+    for i in range(num_images):
+        x, _ = next(iter(dataloader))
+        filename = os.path.join(directory, f"{i}.png")
+        save_image(x, filename)
+
+
 def save_cifar10_sampled_images(output_directory):
     args = get_args()
     device = get_device()
@@ -181,7 +178,7 @@ def save_cifar10_sampled_images(output_directory):
     # Ensure the output directory exists
     os.makedirs(output_directory, exist_ok=True)
 
-    samples = []
+    num_images = 0
 
     if args.checkpoint_entry_name:
         model = checkpoint_entries[args.checkpoint_entry_name].get_model()
@@ -194,58 +191,69 @@ def save_cifar10_sampled_images(output_directory):
             x = (x + 1) / 2
 
             filename = os.path.join(output_directory, f"{i}.png")
-            samples.append(x)
             save_image(x, filename)
 
-    elif args.samples_pt_directory:
-        files = [f for f in os.listdir(args.samples_pt_directory) if f.endswith('.pt')]
+        num_images = args.n_samples
 
+    elif args.samples_pt_directory:
+        files = [f for f in os.listdir(args.samples_pt_directory) if f.endswith(".pt")]
         for j, file in enumerate(files):
-            samples = torch.load(os.path.join(args.samples_pt_directory, file), map_location="cpu")
+            samples = torch.load(
+                os.path.join(args.samples_pt_directory, file), map_location="cpu"
+            )
             samples = (samples + 1) / 2
             samples = rearrange(samples, "b c h w -> b h w c")
 
             for i, s in enumerate(samples):
-                img = (s.numpy() * 255).astype('uint8') 
-                samples.append(img)
-                img = Image.fromarray(img) 
+                img = (s.numpy() * 255).astype("uint8")
+                img = Image.fromarray(img)
                 img.save(os.path.join(output_directory, f"sample_{i + 128 * j}.png"))
-                
-    return samples
+                num_images += 1
 
-def fid_evaluation(real_images, generated_images):
-    fid = FrechetInceptionDistance(normalize=True)
-    fid.update(real_images, real=True)
-    fid.update(generated_images, real=False)
-    print(f"FID: {float(fid.compute())}")
+    return num_images
 
 
-def read_from_folder(fdir):
-    transform = transforms.Compose([transforms.Resize((32, 32)), transforms.ToTensor()])
+def compute_cmmd(ref_dir, eval_dir, ref_embed_file=None, batch_size=32, max_count=-1):
+    """Calculates the CMMD distance between reference and eval image sets.
 
-    file_list = [f for f in os.listdir(fdir) if f.endswith(".png")]
+    Args:
+      ref_dir: Path to the directory containing reference images.
+      eval_dir: Path to the directory containing images to be evaluated.
+      ref_embed_file: Path to the pre-computed embedding file for the reference images.
+      batch_size: Batch size used in the CLIP embedding calculation.
+      max_count: Maximum number of images to use from each directory. A
+        non-positive value reads all images available except for the images
+        dropped due to batching.
 
-    # Load each image into a tensor and collect them into a list
-    tensor_list = []
-    for file_name in file_list:
-        img_path = os.path.join(fdir, file_name)
-        img = Image.open(img_path).convert("RGB")  # Ensure images are in RGB format
-        img_tensor = transform(img)
-        tensor_list.append(img_tensor)
-
-    # Stack the tensors into a single tensor along the first dimension
-    stacked_tensor = torch.stack(tensor_list, dim=0)
-    return stacked_tensor
+    Returns:
+      The CMMD value between the image sets.
+    """
+    if ref_dir and ref_embed_file:
+        raise ValueError(
+            "`ref_dir` and `ref_embed_file` both cannot be set at the same time."
+        )
+    embedding_model = embedding.ClipEmbeddingModel()
+    if ref_embed_file is not None:
+        ref_embs = np.load(ref_embed_file).astype("float32")
+    else:
+        ref_embs = io_util.compute_embeddings_for_dir(
+            ref_dir, embedding_model, batch_size, max_count
+        ).astype("float32")
+    eval_embs = io_util.compute_embeddings_for_dir(
+        eval_dir, embedding_model, batch_size, max_count
+    ).astype("float32")
+    val = distance.mmd(ref_embs, eval_embs)
+    return val.numpy()
 
 
 if __name__ == "__main__":
     args = get_args()
 
-    if args.load_from_folder:
-        real_images = read_from_folder(args.dataset_directory)
-        generated_images = read_from_folder(args.samples_directory)
-    else:
-        generated_images = save_cifar10_sampled_images(args.output_dir_model)
-        real_images = save_cifar10_images(args.output_dir_original, len(generated_images))
-        
-    fid_evaluation(real_images, generated_images)
+    if not args.load_from_folder:
+        num_images = save_cifar10_sampled_images(args.samples_directory)
+        save_cifar10_images(args.dataset_directory, num_images)
+
+    print(
+        "The CMMD value is: "
+        f" {compute_cmmd(args.dataset_directory, args.samples_directory, batch_size=args.cmmd_batch_size, max_count=args.cmmd_max_count):.3f}"
+    )
