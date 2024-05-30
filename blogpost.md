@@ -26,7 +26,7 @@ The mean and the variance of the distribution are parametrized with a variance s
 
 The reverse process models the distribution of $\mathbf X_{t-1} | \mathbf X_t$, which implies not only representing the marginal distribution of $\mathbf X_0$ but also being able to integrate over it. Thus, it is not possible to calculate the conditional distribution directly, and as such it is approximated with another Gaussian distribution:
 
-$$p_{\boldsymbol{\theta}} \left( \mathbf x_{t-1} \mid \mathbf x_t \right) := \mathcal{N} \left( \mathbf x_{t-1} ; \boldsymbol{\mu}_{\boldsymbol{\theta}} \left( \mathbf x_t, t \right), \mathbf \Sigma_{\boldsymbol{\theta}} \left( \mathbf x_t, t \right) \right) \qquad \qquad \text{(Eq. 2)}$$
+$$p_{\boldsymbol{\theta}} \left( \mathbf x_{t-1} \mid \mathbf x_t \right) := \mathcal{N} \left( \mathbf x_{t-1} ; \boldsymbol{\mu}_ {\boldsymbol{\theta}} \left( \mathbf x_t, t \right), \mathbf \Sigma_{\boldsymbol{\theta}} \left( \mathbf x_t, t \right) \right) \qquad \qquad \text{(Eq. 2)}$$
 
 The goal is for $p_{\boldsymbol{\theta}} \left( \mathbf x_{t-1} \mid \mathbf x_t \right)$ to resemble $q\left(\mathbf x_{t - 1} \mid \mathbf x_t, x_0 \right)$. This is accomplished by keeping $\mathbf \Sigma_{\boldsymbol{\theta}} \left( \mathbf x_t, t \right)$ fixed at $\tilde \beta_t \mathbf I$, where $\tilde \beta_t = \frac{1 - \bar \alpha_{t - 1}}{1 - \bar \alpha_t} \beta_t,$ and computing $\boldsymbol \mu_{\boldsymbol{\theta}} \left( \mathbf x_t, t \right)$ from $\boldsymbol{\epsilon}_{\boldsymbol{\theta}} \left( \mathbf x_t, t \right)$, an estimation of the noise that should be added to $\mathbf x_0$ to get $\mathbf x_t$:
 
@@ -68,14 +68,17 @@ However, all these methods continue to employ the entire computational capacity 
 The premise that not all inputs require the same amount of computational resources motivated the exploration of early exiting strategies [8]. These can be defined as general neural network accelerating techniques, allowing the models to selectively exit from hidden layers instead of a full computation when confident enough. 
 
 In the context of classification, for example, one can add intermediate exits in $L$ different layers and compute the predicted label in the following way [8]:
-$$\hat y= \left\{ \begin{array}{lcl} 
-\text{arg max } \mathbf{\hat y}_1 & \text{if} & \text{entropy}(\mathbf{\hat y}_1) < \tau_1, \\  
-\text{arg max } \mathbf{\hat y}_2 & \text{if} & \text{entropy}(\mathbf{\hat y}_2) < \tau_2,\\ 
-& ... & \\
-\text{arg max } \mathbf{\hat y}_L & \text{if} & \text{entropy}(\mathbf{\hat y}_L) < T_n,\\ 
-\end{array} \right.$$
 
-where $\mathbf{y}_i$ is vector of class probabilities and $T_i$ the exit threshold at exit layer $i$. The entropy function is used here to measure how certain the model is about the classification decision in that layer.
+$$
+\hat y= \begin{cases} 
+\text{arg max } \mathbf{\hat y}_1, & \text{if} & \text{entropy}(\mathbf{\hat y}_1) < \delta_1, \\  
+\text{arg max } \mathbf{\hat y}_2, & \text{if} & \text{entropy}(\mathbf{\hat y}_2) < \delta_2,\\ 
+& ... & \\
+\text{arg max } \mathbf{\hat y}_L, & \text{if} & \text{entropy}(\mathbf{\hat y}_L) < \delta_n.
+\end{cases}
+$$
+
+where $\mathbf{y}_i$ is vector of class probabilities and $\delta_i$ the exit threshold at exit layer $i$. The entropy function is used here to measure how certain the model is about the classification decision in that layer.
 
 Early-exiting strategies are potentially applicable to improve efficiency in diffusion models, as different denoising steps may demand varying amounts of computation. Nevertheless, traditional early-exit frameworks are not applicable off-the-shelf in the context due to the time-series property and the lack of a natural confidence estimation measure, and thus other modifications are needed. An example of previous work based on this concept is [10], where the authors propose a pre-defined time-dependent exit schedule. 
 
@@ -108,7 +111,7 @@ where $\mathbf w_t$, $\mathbf b_t$, $f$, and $timesteps$ are the weight matrix, 
 The pseudo-uncertainty ground truth is constructed as follows:
 
 $$\begin{align} 
-\hat{u}_ {i, t}=F\left(\left|\mathbf{g}_{i}\left(L_{i, t}\right)-\boldsymbol \epsilon_{t}\right|\right), & \qquad \qquad \text{(Eq. 6)} 
+\hat{u}_ {i, t}=F\left(\left|\mathbf{g}_ {i}\left(L_{i, t}\right)-\boldsymbol \epsilon_{t}\right|\right), & \qquad \qquad \text{(Eq. 6)} 
 \end{align}$$
 
 where $\mathbf{g}_i$ is the output layer, $\epsilon_t$ is the ground truth noise value and $F$ is a function to smooth the output. The authors used $F = \tanh$.
@@ -121,7 +124,7 @@ The implementation of the output layer, shown in Figure 2, is inspired on the fi
       <td><img src="img/output_head.svg" width=300></td>
   </tr>
   <tr align="left">
-    <td colspan=2><b>Figure 2.</b> Output head of the DeeDiff architecture, that outputs the predicted noise from the output of an intermediate layer of the transformer.</td>
+    <td colspan=2><b>Figure 2.</b> Output head of the DeeDiff architecture, that computes the predicted noise from the output of an intermediate layer of the transformer.</td>
   </tr>
 </table>
 
@@ -140,7 +143,7 @@ During inference, early exit is then achieved by comparing the estimated uncerta
 To mitigate the information loss that occurs when not utilizing the full model, the authors also propose an uncertainty-aware layer-wise loss. They draw inspiration from previous work, with one important modification, a weighting term to give more importance to the output layers where the uncertainty is lower (i.e., early exit will happen).
 
 $$\begin{align} 
-\mathcal{L}_ {U A L}^{t}=\sum_{i=0}^{N-1}\left(1-u_{i, t}\right) \times\left\|\mathbf{g}_{i}\left(L_{i, t}\right)-\boldsymbol \epsilon_t\right\|^{2}, & \qquad \qquad \text{(Eq. 8)}
+\mathcal{L}_ {U A L}^{t}=\sum_{i=0}^{N-1}\left(1-u_{i, t}\right) \times\left\|\mathbf{g}_ {i}\left(L_{i, t}\right)-\boldsymbol \epsilon_t\right\|^{2}, & \qquad \qquad \text{(Eq. 8)}
 \end{align}$$
 
 where $u_{i, t}$ is the uncertainty value estimated in each layer.
@@ -181,10 +184,12 @@ We can summarize our novel contributions as follows:
 
 <!-- As per Equation 5 above, we know that in the original paper, the UEM is implemented as a linear layer. However, this layer is applied independently to each patch, without allowing interaction between patches. Consequently, uncertainties must be aggregated in order to make a decision regarding whether to exit or not. As an alternative, we propose **using an attention probe**. This is implemented as an attention layer, in which the keys and values are derived from the sequence, and a single query vector is learned. This effectively allows interaction between patches and avoids the need to choose a fixed aggregation function (e.g. sum or max). -->
 - Regarding the original UEM implementation, we explore three alternatives: an MLP probe per layer, an MLP probe per timestep, and an MLP probe per layer per timestep. 
-- We have incorporated a novel **fourth component into the model's loss function**, which consists of the UAL loss from Eq. 8 removing the uncertainty weighting $(1 - u_{i,t})$. The motivation behind this is to prevent the model from potentially learning to produce low-quality outputs and consistently predict "exit", as this behavior would minimize both $\mathcal{L}_u^t$ and $\mathcal{L}_\text{UAL}^t$ losses simultaneously. We add this loss as a new term in $\mathcal L_{\text{all}}$ (Eq. 9) with coefficient 1. The analytical expression of this new loss is:
+- We have incorporated a novel **fourth component into the model's loss function**, which consists of the UAL loss from Eq. 8 removing the uncertainty weighting $(1 - u_{i,t})$. The motivation behind this is to prevent the model from potentially learning to produce low-quality outputs and consistently predict "exit", as this behavior would minimize both $\mathcal{L}_ u^t$ and $\mathcal{L}_ \text{UAL}^t$ losses simultaneously. We add this loss as a new term in $\mathcal L_{\text{all}}$ (Eq. 9) with coefficient 1. The analytical expression of this new loss is:
+  
 $$
-\mathcal{L}_ {L}^{t}=\sum_{i=0}^{N-1}\left\|\mathbf{g} _{i}\left(L_{i, t}\right)- \boldsymbol \epsilon_t\right\|^{2}, \qquad \qquad \text{(Eq. 10)}
+\mathcal{L}_ {L}^{t}=\sum_{i=0}^{N-1}\left\|\mathbf{g}_ {i}\left(L_{i, t}\right)- \boldsymbol \epsilon_t\right\|^{2}. \qquad \qquad \text{(Eq. 10)}
 $$ 
+
 - Motivated by the potential to reuse already trained diffusion models and enhance their performance, we also explore the possibility of performing early exit on pre-trained models by just fine-tuning the UEMs and projection heads, while keeping the **backbone frozen**.
 - We conduct a thorough **investigation into early-exit trends**, to quantify the impact of this technique on the model's overall efficiency. With this, our primary goal is to identify opportunities for optimizing the model architecture, without compromising the added performance benefits.
 - As a minor addition, in each time step, we apply the uncertainty estimation module to the inputs, instead of the outputs of each transformer block (including the first one). This ensures that the model is not only able to early exit but to also **skip steps entirely**.
@@ -338,7 +343,7 @@ Figure 4 provides a visualization of the difference between the best and worst p
 
 <table align="center">
   <tr align="center">
-      <td><img src="img/Figure4.png" width=800></td>
+      <td><img src="img/figure4.svg" width=650></td>
   </tr>
   <tr align="left">
     <td colspan=2><b>Figure 4.</b> Image quality comparison between worst and best models with respect to the FID score. We used the same threshold of 0.075 for both methods. </td>
@@ -381,7 +386,7 @@ Across all types of UEMs, we note a greater layer ratio reduction for the fine-t
 
 <table align="center">
   <tr align="center">
-      <td><img src="img/Figure5.png" width=800></td>
+      <td><img src="img/Figure5.png" width=650></td>
   </tr>
   <tr align="left">
     <td colspan=2><b>Figure 5.</b> Comparison between images generated from models with MLP per layer, with a fine-tuned and a frozen backbone, and a fixed threshold of 0.075. </td>
@@ -448,10 +453,10 @@ Regardless of training strategy or UEM implementation, we observe a similar tren
 
 <table align="center">
   <tr align="center">
-      <td><img src="img/layer.svg" width=800></td>
+      <td><img src="img/layer.svg" width=300></td>
   </tr>
   <tr align="left">
-    <td colspan=2><b>Figure 6.</b> Early-exit layers for different thresholds and UEM implementations averaged over 1024 sampled images. </td>
+    <td colspan=2><b>Figure 6.</b> Early-exit layer per timestep for different thresholds and UEM implementations. Results are averaged over 1024 sampled images. </td>
   </tr>
 </table>
 
@@ -459,48 +464,50 @@ This makes sense because the model is trained with $\mathbf{x}_t = \sqrt{\bar \a
 
 <table align="center">
   <tr align="center">
-      <td><img src="img/coefficients.svg" width=800></td>
+      <td><img src="img/coefficients.svg" width=300></td>
   </tr>
   <tr align="left">
-    <td colspan=2><b>Figure 7.</b> Taken from [12]. </td>
+    <td colspan=2><b>Figure 7.</b> Evolution of Diffusion coefficients across sampling timesteps. </td>
   </tr>
 </table>
 
-Figure X1 further explains this. Our intuition is that in the first sampling steps, the model finds it easier to predict the noise from a very noisy image, while it becomes increasingly harder to identify the noise in the last steps, as the image's distribution is further from the noise's.
+Figure 8 further explains this. Our intuition is that in the first sampling steps, the model finds it easier to predict the noise from a very noisy image, while it becomes increasingly harder to identify the noise in the last steps, as the image's distribution is further from the noise's.
 
 <table align="center">
   <tr align="center">
-      <td><img src="img/ee-explanation.svg" width=800></td>
+      <td><img src="img/ee-explanation.svg" width=650></td>
   </tr>
   <tr align="left">
-    <td colspan=2><b>Figure X1.</b> Evolution of the diffusion coefficients over sampling steps. </td>
+    <td colspan=2><b>Figure 8.</b> Example of input and expected output of the backbone architecture for different timesteps. </td>
   </tr>
 </table>
 
 
 #### Classifier outputs
-
-In addition to investigating the layers where early exiting is performed, we also looked into the UEM outputs computed for every layer and timestep during sampling. Figure 8 shows these outputs averaged over 1024 images sampled from the model with attention probe and frozen backbone. We observe how the uncertainty values increase as the denoising process advances. It is also interesting to see the differences between layers. The outputs start to increase after the middle layer (7), where the outputs of the initial layers are added to the inputs via the skip connections.
+In addition to investigating the layers where early exiting is performed, we also looked into the UEM outputs computed for every layer and timestep. We analyize three scenarios in Figure 9: (1) using a frozen backbone with an attention probe, (2) fine-tuning the backbone and the attention probe together, and (3) using a frozen backbone with an attention probe (using as objective all four losses). Even though one would expect some kind of monotonicity (i.e., an uncertainty that decreases as we move to deeper layers) that only happens when we fine-tune the model, train it from scratch, or add our fourth loss. On the contrary, if we keep the backbone frozen, we see that the uncertainty increases after the middle layer, which is precisely where the initial layers are added via the skip connections.
 
 <table align="center">
   <tr align="center">
-      <td><img src="img/Figure7.png" width=800></td>
+      <td><img src="img/error-attention-(fine-tuned)-0.075.svg" width=200></td>
+      <td><img src="img/error-attention-(frozen-4-losses)-0.075.svg" width=200></td>
+      <td><img src="img/error-attention-(frozen)-0.075.svg" width=200></td>
   </tr>
   <tr align="left">
-    <td colspan=2><b>Figure 8.</b> UEM outputs over layers and timesteps of the model with attention probe and frozen backbone. </td>
+    <td colspan=3><b>Figure 9.</b> UEM outputs over layers and timesteps. Results are averaged over 1024 samples.</td>
   </tr>
 </table>
 
-#### Thresholds and samples
 
-Lastly, we also investigate the impact on image quality based on different threshold. As can be seen in Figure 9, we observe that early-exit thresholds between 0 and 0.05 don't alter the image quality significantly, while thresholds larger than 0.075, which allow early-exit more permissively, result in considerable alterations.
+#### Influence of the threshold
+
+Lastly, we also investigate the impact on image quality based on different threshold. As can be seen in Figure 10, we observe that early-exit thresholds between 0 and 0.05 don't alter the image quality significantly, while thresholds larger than 0.075, which allow early-exit more permissively, result in considerable alterations.
 
 <table align="center">
   <tr align="center">
-      <td><img src="img/Figure8.png" width=800></td>
+      <td><img src="img/figure9.svg" width=400></td>
   </tr>
   <tr align="left">
-    <td colspan=2><b>Figure 9.</b> Images generated from models with different early-exit thresholds. </td>
+    <td colspan=2><b>Figure 10.</b> Images generated from models with different early-exit thresholds. DeeDif with attention trained with a frozen backbone was used to generate the images. </td>
   </tr>
 </table>
 
@@ -552,7 +559,7 @@ Furthermore, we compare results obtained with thresholds 0.05 and 0.075 for our 
 
 The results in Table 4 align with our expectations, demonstrating that a lower threshold enhances image quality. However, this improvement comes at the cost of increased computational demand, resulting in fewer instances of early exiting. This finding highlights the necessity of not only a more refined, and potentially adaptive threshold, but also the inevitable trade-off between quality and performance, necessitating careful consideration based on specific needs and constraints.
 
-As a final observation, it is notable that despite allowing the model to skip entire timesteps, i.e., early exit before going through the first transformer block (layer 0 in the plots), we have hardly ever observed this behaviour in our experiments. Figure 6 illustrates that this phenomenon only manifests in the initial timesteps for a threshold of 0.1, which, as evidenced in Figure 9, fails to adequately maintain image quality.
+As a final observation, it is notable that despite allowing the model to skip entire timesteps, i.e., early exit before going through the first transformer block (layer 0 in the plots), we have hardly ever observed this behaviour in our experiments. Figure 6 illustrates that this phenomenon only manifests in the initial timesteps for a threshold of 0.1, which, as evidenced in Figure 10, fails to adequately maintain image quality.
 
 ## Further research
 For future research, we aim to address the time and resource constraints encountered during the project and, consequently, conduct additional experiments. This includes (1) experimenting with other datasets featuring higher resolution images, such as CelebA or ImageNet, (2) experimenting with a larger subset of early-exit thresholds and (3) reporting more accurate FID scores based on a larger number of generated images.
@@ -566,9 +573,9 @@ Lastly, we plan to conduct experiments using fewer uncertainty estimation module
 
 In this blog post, we have thoroughly analyzed the paper "DeeDiff: Dynamic Uncertainty-Aware Early Exiting For Accelerating Diffusion Model Generation", identifying the strengths and weaknesses of the original work, as well as proposing novel contributions that address these weaknesses. Our contributions include, but are not limited to, proposing alternative implementations of the UEM, introducing a new loss component to prevent potential issues in model learning, and exploring the feasibility of early-exit on pre-trained frozen backbones. We conducted comprehensive experiments to evaluate the impact of our proposed modifications on image generation quality and efficiency gains.
 
-We found that adopting a single UEM per layer, shared across all timesteps represents an optimal approach. Additionally, freezing the backbone during fine-tuning of the uncertainty estimation and projection heads leads to better image quality compared to fine-tuning everything, albeit with a slight sacrifice in efficiency gains. 
+We found that adopting a single UEM per layer, shared across all timesteps, represents an optimal approach. Additionally, freezing the backbone during fine-tuning of the uncertainty estimation and projection heads leads to better image quality compared to fine-tuning everything, albeit with a slight sacrifice in efficiency gains. 
 
-Furthermore, our investigation into early-exit trends revealed that our models were able to partially validate the proposed technique by early-exiting in some timesteps, indicating the potential for further optimization of the model architecture, such as employing fewer UEMs in just some of the layers of the backbone.
+Our investigation into early-exit trends is probably our bigger contribution, as we show that early-exit only happens in almost-trivial cases. It would be desirable to make the model early-exit in a wider variety of layers across all timesteps.
 
 Overall, our work provides valuable insights into accelerating the inference of diffusion models while maintaining high-quality image generation, contributing to the ongoing research in this domain. 
 
@@ -579,7 +586,7 @@ Overall, our work provides valuable insights into accelerating the inference of 
 - Janusz: training loop, checkpointing, README.
 - Ana: DeeDiff loss functions implementation, CMMD/FID and layer ratio analysis, blogpost.
 
-Note: we took the [U-ViT repository](https://github.com/baofff/U-ViT) and some base code provided by our TA (Tin Hadži) as inspiration for the implementation of the backbone model (U-ViT-Small). The rest of the implementation was developed by us.
+_Note: we took the [U-ViT repository](https://github.com/baofff/U-ViT) and some base code provided by our TA (Tin Hadži) as inspiration for the implementation of the backbone model (U-ViT-Small). The rest of the implementation was developed by us._
 
 ## Bibliography
 [1] Ho, Jonathan, Ajay Jain, and Pieter Abbeel. "Denoising diffusion probabilistic models." Advances in neural information processing systems 33 (2020): 6840-6851.
