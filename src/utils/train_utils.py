@@ -70,9 +70,9 @@ def get_optimizer(model, args):
 
 def get_dataloader(args):
     if args.dataset == "cifar10":
-        return get_cifar10_dataloader(batch_size=args.batch_size, seed=args.seed)
+        return get_cifar10_dataloader(batch_size=args.batch_size, seed=args.seed, download=args.download)
     elif args.adataset == "celeba":
-        return get_celeba_dataloader(batch_size=args.batch_size, seed=args.seed)
+        return get_celeba_dataloader(batch_size=args.batch_size, seed=args.seed, download=args.download)
 
 
 def get_noise_scheduler(args):
