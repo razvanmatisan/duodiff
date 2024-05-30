@@ -58,6 +58,16 @@ checkpoint_entries = {
         model_type=EarlyExitUViT,
         classifier_type="mlp_probe_per_layer",
     ),
+    "mlp_probe_per_layer_per_timestep_initialized": CheckpointEntry(
+        checkpoint_path="logs/6374645/cifar10_deediff_uvit.pth",
+        model_type=EarlyExitUViT,
+        classifier_type="mlp_probe_per_layer_per_timestep",
+    ),
+    "mlp_probe_per_layer_per_timestep_frozen": CheckpointEntry(
+        checkpoint_path="logs/6384302/cifar10_deediff_uvit.pth",
+        model_type=EarlyExitUViT,
+        classifier_type="mlp_probe_per_layer_per_timestep",
+    ),
     "attention_frozen": CheckpointEntry(
         checkpoint_path="logs/6266130/cifar10_deediff_uvit.pth",
         model_type=OldEarlyExitUViT,
@@ -68,10 +78,25 @@ checkpoint_entries = {
         model_type=EarlyExitUViT,
         classifier_type="attention_probe",
     ),
-    "mlp_per_time_per_layer_initialized": CheckpointEntry(
-        checkpoint_path="logs/6374645/cifar10_deediff_uvit.pth",
+    "attention_4": CheckpointEntry(
+        checkpoint_path="logs/6384311/cifar10_deediff_uvit.pth",
         model_type=EarlyExitUViT,
-        classifier_type="mlp_probe_per_layer_per_timestep",
+        classifier_type="attention_probe",
+    ),
+    "mlp_4": CheckpointEntry(
+        checkpoint_path="logs/6384322/cifar10_deediff_uvit.pth",
+        model_type=EarlyExitUViT,
+        classifier_type="mlp_probe_per_layer",
+    ),
+    "mlp_from_scratch": CheckpointEntry(
+        checkpoint_path="logs/6384362/cifar10_deediff_uvit.pth",
+        model_type=EarlyExitUViT,
+        classifier_type="mlp_probe_per_layer",
+    ),
+    "attention_from_scratch": CheckpointEntry(
+        checkpoint_path="logs/6396708/cifar10_deediff_uvit.pth",
+        model_type=EarlyExitUViT,
+        classifier_type="attention_probe",
     ),
 }
 
