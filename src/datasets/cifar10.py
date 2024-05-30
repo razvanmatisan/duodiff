@@ -5,7 +5,9 @@ from torchvision.datasets import CIFAR10
 from datasets.sampler import ResumableRandomSampler
 
 
-def get_cifar10_dataloader(batch_size, seed, data_dir="data/cifar10/", download=False):
+def get_cifar10_dataloader(
+    batch_size, seed, data_dir="../data/cifar10/", download=False
+):
     """
     Builds a dataloader with all training images from the CIFAR-10 dataset.
     Args:
