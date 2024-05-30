@@ -171,7 +171,7 @@ For computing the average layer ratio and theoretical GFLOPs for each method, on
 python compute_gflops_and_layer_ratio.py
     --indices_by_timestep_directory ${indices_by_timestep_directory} \
 ```
-The parameter ``indices_by_timestep_directory`` is the relative path to the folder which contains files in ``.pt`` format regarding the layers which early exit took place per timestep. These directories can be found in ``src/benchmarking/output``. Currently, we uploaded only the ``.pt`` files for the model that uses an attention probe and a frozen backbone during training. The reason why we did not include them for all methods is because the files are pretty large. If one would need the files for the other methods, please contact us.
+The parameter ``indices_by_timestep_directory`` is the relative path to the folder which contains files in ``.pt`` format regarding the layers which early exit took place per timestep. These directories can be found in ``benchmarking/output``. Currently, we uploaded only the ``.pt`` files for the model that uses an attention probe and a frozen backbone during training. The reason why we did not include them for all methods is because the files are pretty large. If one would need the files for the other methods, please contact us.
 
 
 ## Resources
