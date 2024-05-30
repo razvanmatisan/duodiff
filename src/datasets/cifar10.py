@@ -6,7 +6,7 @@ from datasets.sampler import ResumableRandomSampler
 
 
 def get_cifar10_dataloader(
-    batch_size, seed, data_dir="../data/cifar10/", download=False
+    batch_size, seed, data_dir="../data/cifar10/",
 ):
     """
     Builds a dataloader with all training images from the CIFAR-10 dataset.
@@ -26,7 +26,7 @@ def get_cifar10_dataloader(
         [transforms.ToTensor(), transforms.Normalize(mean, std)]
     )
 
-    dataset = CIFAR10(root=data_dir, train=True, download=download, transform=transform)
+    dataset = CIFAR10(root=data_dir, train=True, download=True, transform=transform)
 
     sampler = ResumableRandomSampler(dataset, seed)
 

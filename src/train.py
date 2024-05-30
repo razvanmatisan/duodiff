@@ -176,7 +176,6 @@ def get_args():
         choices=["cifar10", "celeba"],
         help="Dataset name",
     )
-    parser.add_argument("--download", action="store_true", default=False, help="Download dataset")
 
     return parser.parse_args()
 
