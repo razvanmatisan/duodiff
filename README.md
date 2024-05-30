@@ -42,7 +42,8 @@ python -m pytest tests
 - `demos/`: Demos for visualising early stopping diffusion.
 - `src/`: Code.
     - `CMMD_evaluation/`: Code for calculating the CMMD score of generated samples.
-    - `samples/`: Directories with generated samples.
+    - `benchmarking/`: Files for benchmarking models.
+    - `checkpoints/`: Checkpoints.
     - `datasets/`: Dataset-specific dataloaders.
     - `models/`: Model definitions.
     - `scripts/`: Scripts for training, generation, evaluation and benchmarking.
@@ -52,9 +53,9 @@ python -m pytest tests
         - `field_utils.py` Getters for time and space embeddings.
         - `train_utils.py` Getters for models, optimizers, dataloaders, etc.
     - `FID_evaluation.py`: Code for calculating the FID score of generated samples.
-    - `get_flops.py`: Code for computing theoretical GFLOPs.
     - `compute_gflops_and_layer_ratio.py`: Code for computing the average layer ratio and theoretical GFLOP.
     - `ddpm_core.py`: Code of the DDPM sampler.
+    - `get_flops.py`: Code for computing theoretical GFLOPs.
     - `requirements.txt`: File with requirements for setting up the virtual environment.
     - `train.py`: Code for training models.
 - `blogpost.md`: Blogpost about the project.
@@ -80,7 +81,7 @@ or
 python train.py \
     --model uvit \
     --n_steps 100000 \
-    --batch_size 128 \
+    --batch_size 128
 ```
 
 #### Early-exit models
