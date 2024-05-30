@@ -11,6 +11,7 @@ import torchvision
 from accelerate import Accelerator
 from torch.utils.tensorboard import SummaryWriter
 from tqdm import tqdm
+
 from utils.train_utils import (
     InfiniteDataloaderIterator,
     get_dataloader,
@@ -411,7 +412,10 @@ if __name__ == "__main__":
     lr_scheduler = get_lr_scheduler(optimizer, args)
     writer = SummaryWriter(args.log_path)
 
-    accelerator = Accelerator(mixed_precision=args.amp_dtype)
+    if args.use_amp:
+        accelerator = Accelerator(mixed_precision=args.amp_dtype)
+    else:
+        accelerator = Accelerator()
     device = accelerator.device
     print(f"Training on {device}")
     model, optimizer, trainloader, lr_scheduler = accelerator.prepare(
