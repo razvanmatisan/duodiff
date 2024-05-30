@@ -2,6 +2,8 @@ import argparse
 import os
 import sys
 
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
+
 import distance
 import embedding
 import io_util
@@ -13,8 +15,6 @@ from einops import rearrange
 from PIL import Image
 from torchvision.utils import save_image
 from tqdm import tqdm
-
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
 
 def get_device():
@@ -42,14 +42,14 @@ def get_args():
     parser.add_argument(
         "--samples_directory",
         type=str,
-        default=None,
+        default="samples/CIFAR19/generated_data",
         help="Path to the directory where to save the images from the model",
     )
 
     parser.add_argument(
         "--dataset_directory",
         type=str,
-        default=None,
+        default="samples/CIFAR19/original_data",
         help="Path to the directory where to save the images from the dataset",
     )
 
