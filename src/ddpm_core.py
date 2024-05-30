@@ -1,7 +1,6 @@
 from collections import defaultdict
 
 import torch
-from benchmark import get_gflops
 from tqdm import tqdm
 
 
@@ -112,7 +111,6 @@ class NoiseScheduler:
         num_samples,
         seed,
         model_type,
-        benchmarking=False,
         train_mode=False,
         time_frequency=None,
         space_frequency=None,
@@ -165,11 +163,6 @@ class NoiseScheduler:
                         logging_dict["early_exit_layers"].append((t, model_output[2]))
                     else:
                         logging_dict["outputs"].append(model_output[2])
-
-                # [Optional] Step 2.6: Benchmarking
-                if benchmarking:
-                    gflops = get_gflops(model, x_t, time_tensor)
-                    logging_dict["benchmarking"].append((t, gflops))
 
                 # Step 3: Sample z from N(0, I) if t > 1, else z = 0
                 z = (
