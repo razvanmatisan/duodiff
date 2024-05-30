@@ -26,7 +26,7 @@ jobs:
     - run: pip install -r src/requirements.txt
     - name: Lint with Ruff
       run: |
-        ruff check --select I --output-format=github .
+        ruff check --output-format=github .
     - name: Test with pytest
       run: |
         python -m pytest src/tests
