@@ -16,6 +16,7 @@ from datasets.cifar10 import get_cifar10_dataloader
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
+
 def get_device():
     if torch.cuda.is_available():
         return "cuda:0"
