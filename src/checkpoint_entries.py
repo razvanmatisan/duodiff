@@ -2,9 +2,10 @@ import subprocess
 from dataclasses import dataclass
 
 import torch
+from torch import nn
+
 from models.early_exit import EarlyExitUViT, OldEarlyExitUViT
 from models.uvit import UViT
-from torch import nn
 
 
 @dataclass
@@ -98,10 +99,10 @@ checkpoint_entries = {
         classifier_type="attention_probe",
     ),
     "frozenBackbone_attention_3losses": CheckpointEntry(
-        checkpoint_path="src/checkpoints/frozenBackbone_attention_3losses.pth",
+        checkpoint_path="checkpoints/frozenBackbone_attention_3losses.pth",
         model_type=OldEarlyExitUViT,
         classifier_type="attention_probe",
-    )
+    ),
 }
 
 if __name__ == "__main__":
