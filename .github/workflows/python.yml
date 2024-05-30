@@ -29,4 +29,5 @@ jobs:
         ruff check --output-format=github .
     - name: Test with pytest
       run: |
-        python -m pytest src/tests
+        cd src
+        python -m pytest tests
