@@ -125,6 +125,11 @@ python train.py \
 
 ### Evaluation
 
+For evaluation, you should have a checkpoint. For convenience, we include one that can be downloaded using [git lfs](https://docs.github.com/en/repositories/working-with-files/managing-large-files/installing-git-large-file-storage):
+```bash
+git lfs pull --include "src/checkpoints/frozenBackbone_attention_3losses.pth"
+```
+
 #### CMMD
 Command for generating samples and calculating the CMMD score: 
 ```shell
