@@ -3,13 +3,14 @@ import os
 
 import torch
 from checkpoint_entries import checkpoint_entries
-from datasets.cifar10 import get_cifar10_dataloader
 from einops import rearrange
 from PIL import Image
 from torchmetrics.image.fid import FrechetInceptionDistance
 from torchvision import transforms
 from torchvision.utils import save_image
 from tqdm import tqdm
+
+from datasets.cifar10 import get_cifar10_dataloader
 
 
 def get_device():

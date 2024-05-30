@@ -4,13 +4,14 @@ from typing import Sequence
 
 import numpy as np
 import torch
-from datasets.celeba import get_celeba_dataloader
-from datasets.cifar10 import get_cifar10_dataloader
 from ddpm_core import NoiseScheduler
 from diffusers.optimization import get_cosine_schedule_with_warmup
+from torch.utils.data import DataLoader
+
+from datasets.celeba import get_celeba_dataloader
+from datasets.cifar10 import get_cifar10_dataloader
 from models.early_exit import EarlyExitUViT
 from models.uvit import UViT
-from torch.utils.data import DataLoader
 
 
 def get_model(args):

@@ -1,8 +1,9 @@
 import torch
 import torch.nn.functional as F
 from einops import rearrange
-from models.uvit import UViT, timestep_embedding, unpatchify
 from torch import nn
+
+from models.uvit import UViT, timestep_embedding, unpatchify
 
 
 class OutputHead(nn.Module):
