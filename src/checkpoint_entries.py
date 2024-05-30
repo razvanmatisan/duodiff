@@ -97,6 +97,11 @@ checkpoint_entries = {
         model_type=EarlyExitUViT,
         classifier_type="attention_probe",
     ),
+    "frozenBackbone_attention_3losses": CheckpointEntry(
+        checkpoint_path="src/checkpoints/frozenBackbone_attention_3losses.pth",
+        model_type=OldEarlyExitUViT,
+        classifier_type="attention_probe",
+    )
 }
 
 if __name__ == "__main__":
