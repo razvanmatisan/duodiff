@@ -5,7 +5,7 @@ from torchvision.datasets import CelebA
 from datasets.sampler import ResumableRandomSampler
 
 
-def get_celeba_dataloader(batch_size, seed, data_dir="../data/", download=False):
+def get_celeba_dataloader(batch_size, seed, data_dir="../data/"):
     """
     Builds a dataloader with all images from the CelebA dataset.
     Args:
@@ -29,7 +29,7 @@ def get_celeba_dataloader(batch_size, seed, data_dir="../data/", download=False)
     )
 
     dataset = CelebA(
-        root=data_dir, split="all", download=download, transform=data_transforms
+        root=data_dir, split="all", download=True, transform=data_transforms
     )
 
     sampler = ResumableRandomSampler(dataset, seed)
