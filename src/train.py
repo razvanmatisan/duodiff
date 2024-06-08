@@ -30,7 +30,7 @@ def get_args():
     # Training
     parser.add_argument("--seed", type=int, default=1, help="Seed")
     parser.add_argument("--n_steps", type=int, required=True, help="Number of steps")
-    parser.add_argument("--batch_size", type=int, default=128, help="Number of steps")
+    parser.add_argument("--batch_size", type=int, default=128, help="Batch size")
     parser.add_argument(
         "--num_timesteps", type=int, default=1000, help="Number of timesteps"
     )
@@ -92,6 +92,12 @@ def get_args():
         help="If true, normalize the timesteps in [0, 1] from [0, 1000]",
     )
     parser.add_argument("--use_unweighted_loss", action="store_true")
+    parser.add_argument(
+        "--parametrization",
+        type=str,
+        choices=["predict_noise", "predict_original", "predict_previous"],
+        default="predict_noise",
+    )
 
     parser.add_argument(
         "--save_checkpoint_path",
@@ -252,8 +258,42 @@ def loss_fn(model, batch, noise_scheduler, device, args):
     noise, noisy_images = noise_scheduler.add_noise(clean_images, timesteps)
 
     if args.model == "uvit":
-        predicted_noise = model(noisy_images, timesteps)
-        loss = F.mse_loss(predicted_noise, noise)
+        if args.parametrization == "predict_noise":
+            predicted_noise = model(noisy_images, timesteps)
+            loss = F.mse_loss(predicted_noise, noise)
+        elif args.parametrization == "predict_original":
+            predicted_original = model(noisy_images, timesteps)
+            loss = F.mse_loss(predicted_original, clean_images)
+        elif args.parametrization == "predict_previous":
+            predicted_previous = model(noisy_images, timesteps)
+
+            betas = torch.linspace(1e-4, 0.02, 1000).to(device)
+            alphas = 1 - betas
+            alphas_bar = torch.cumprod(alphas, dim=0)
+            alphas_bar_previous = torch.cat(
+                [torch.tensor([1.0], device=device), alphas_bar[:-1]]
+            )
+
+            clean_image_coef = (
+                torch.sqrt(alphas_bar_previous[timesteps])
+                * betas[timesteps]
+                / (1 - alphas_bar[timesteps])
+            )[:, None, None, None]
+
+            noisy_image_coef = (
+                torch.sqrt(alphas[timesteps])
+                * (1 - alphas_bar_previous[timesteps])
+                / (1 - alphas_bar[timesteps])
+            )[:, None, None, None]
+
+            expected_previous = (
+                clean_image_coef * clean_images + noisy_image_coef * noisy_images
+            )
+
+            loss = F.mse_loss(predicted_previous, expected_previous)
+        else:
+            raise ValueError(f"Unknown parametrization type {args.parametrization}")
+
     elif args.model == "deediff_uvit":
         predicted_noise, classifier_outputs, outputs = model(noisy_images, timesteps)
 
