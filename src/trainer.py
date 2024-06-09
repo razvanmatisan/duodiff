@@ -316,27 +316,32 @@ class Trainer:
                 )
 
         elif self.args.model == "deediff_uvit":
-            predicted_noise, classifier_outputs, outputs = self.model(
-                noisy_images, timesteps
-            )
+            backbone_output, classifier_outputs, ee_outputs = model(noisy_images, timesteps)
 
             # Reshape list of L elements of shape (bs,) into tensor of shape (L, bs)
             classifier_outputs = torch.stack(classifier_outputs, dim=0)
             # Reshape list of L elements of shape (bs, C, H, W) into tensor of shape (L, bs, C, H, W)
-            outputs = torch.stack(outputs, dim=0)
+            ee_outputs = torch.stack(ee_outputs, dim=0)
+
+            if args.parametrization == "predict_noise":
+                true_output = noise
+            elif args.parametrization == "predict_original":
+                true_output = clean_images
+            else:
+                raise ValueError(f"Unknown parametrization type {args.parametrization}")
 
             # L_simple
-            L_simple = F.mse_loss(predicted_noise, noise)
+            L_simple = F.mse_loss(backbone_output, true_output)
 
             # L_u_t
             u_t_hats = torch.stack(
-                [F.tanh(torch.abs(output - noise)) for output in outputs], dim=0
+                [F.tanh(torch.abs(ee_output - true_output)) for ee_output in ee_outputs], dim=0
             )
             u_t_hats = u_t_hats.mean(dim=(-1, -2, -3))
             L_u_t = F.mse_loss(classifier_outputs, u_t_hats, reduction="sum")
 
             # L_UAL_t
-            L_n_t = torch.stack([(output - noise) ** 2 for output in outputs], dim=0)
+            L_n_t = torch.stack([(ee_output - true_output) ** 2 for ee_output in ee_outputs], dim=0)
             L_n_t = L_n_t.mean(dim=(-1, -2, -3))
 
             # Trying u_t_hats, that is actually from 0 to 1 (classifier outputs is not!)
