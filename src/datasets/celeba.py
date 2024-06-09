@@ -2,7 +2,7 @@ from torch.utils.data import DataLoader
 from torchvision import transforms
 from torchvision.datasets import CelebA
 
-from datasets.sampler import ResumableRandomSampler
+from datasets.sampler import ResumableSeedableSampler
 
 
 def get_celeba_dataloader(batch_size, seed, data_dir="../data/"):
@@ -32,7 +32,7 @@ def get_celeba_dataloader(batch_size, seed, data_dir="../data/"):
         root=data_dir, split="all", download=True, transform=data_transforms
     )
 
-    sampler = ResumableRandomSampler(dataset, seed)
+    sampler = ResumableSeedableSampler(dataset, seed)
 
     return DataLoader(
         dataset=dataset,

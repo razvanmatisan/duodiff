@@ -2,7 +2,7 @@ from torch.utils.data import DataLoader
 from torchvision import transforms
 from torchvision.datasets import CIFAR10
 
-from datasets.sampler import ResumableRandomSampler
+from datasets.sampler import ResumableSeedableSampler
 
 
 def get_cifar10_dataloader(
@@ -30,7 +30,7 @@ def get_cifar10_dataloader(
 
     dataset = CIFAR10(root=data_dir, train=True, download=True, transform=transform)
 
-    sampler = ResumableRandomSampler(dataset, seed)
+    sampler = ResumableSeedableSampler(dataset, seed)
 
     return DataLoader(
         dataset=dataset, batch_size=batch_size, drop_last=True, sampler=sampler
