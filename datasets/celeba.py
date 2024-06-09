@@ -1,3 +1,5 @@
+from pathlib import Path
+
 from torch.utils.data import DataLoader
 from torchvision import transforms
 from torchvision.datasets import CelebA
@@ -5,7 +7,7 @@ from torchvision.datasets import CelebA
 from datasets.sampler import ResumableSeedableSampler
 
 
-def get_celeba_dataloader(batch_size, seed, data_dir="../data/"):
+def get_celeba_dataloader(batch_size, seed, data_dir="./data/"):
     """
     Builds a dataloader with all images from the CelebA dataset.
     Args:
@@ -28,8 +30,10 @@ def get_celeba_dataloader(batch_size, seed, data_dir="../data/"):
         ]
     )
 
+    path = Path(data_dir) / "celeba"
+
     dataset = CelebA(
-        root=data_dir, split="all", download=True, transform=data_transforms
+        root=path, split="all", download=True, transform=data_transforms
     )
 
     sampler = ResumableSeedableSampler(dataset, seed)

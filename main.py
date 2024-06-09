@@ -10,8 +10,8 @@ def get_args():
 
     # Training
     parser.add_argument("--seed", type=int, default=1, help="Seed")
-    parser.add_argument("--n_steps", type=int, default=10, help="Number of steps")
-    parser.add_argument("--batch_size", type=int, default=2, help="Batch size")
+    parser.add_argument("--n_steps", type=int, required=True, help="Number of steps")
+    parser.add_argument("--batch_size", type=int, default=128, help="Batch size")
     parser.add_argument(
         "--num_timesteps", type=int, default=1000, help="Number of timesteps"
     )
@@ -174,6 +174,10 @@ def get_args():
         choices=["cifar10", "celeba"],
         help="Dataset name",
     )
+    parser.add_argument(
+        "--data_path", type=str, default="data", help="Directory for datasets"
+    )
+
 
     return parser.parse_args()
 

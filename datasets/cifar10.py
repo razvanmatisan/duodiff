@@ -1,3 +1,5 @@
+from pathlib import Path
+
 from torch.utils.data import DataLoader
 from torchvision import transforms
 from torchvision.datasets import CIFAR10
@@ -8,7 +10,7 @@ from datasets.sampler import ResumableSeedableSampler
 def get_cifar10_dataloader(
     batch_size,
     seed,
-    data_dir="../data/cifar10/",
+    data_dir,
 ):
     """
     Builds a dataloader with all training images from the CIFAR-10 dataset.
@@ -28,7 +30,9 @@ def get_cifar10_dataloader(
         [transforms.ToTensor(), transforms.Normalize(mean, std)]
     )
 
-    dataset = CIFAR10(root=data_dir, train=True, download=True, transform=transform)
+    path = Path(data_dir) / "cifar10"
+
+    dataset = CIFAR10(root=path, train=True, download=True, transform=transform)
 
     sampler = ResumableSeedableSampler(dataset, seed)
 

@@ -121,11 +121,11 @@ class Trainer:
     def _init_dataloader(self):
         if self.args.dataset == "cifar10":
             self.dataloader = get_cifar10_dataloader(
-                batch_size=self.args.batch_size, seed=self.args.seed
+                batch_size=self.args.batch_size, seed=self.args.seed, data_dir=self.args.data_path
             )
         elif self.args.adataset == "celeba":
             self.dataloader = get_celeba_dataloader(
-                batch_size=self.args.batch_size, seed=self.args.seed
+                batch_size=self.args.batch_size, seed=self.args.seed, data_dir=self.args.data_path
             )
         else:
             raise ValueError(f"Dataset {self.args.dataset} not implemented.")
