@@ -1,23 +1,23 @@
+import json
 import math
 from pathlib import Path
-import json
 
-from checkpointer import Checkpointer
-from utils.train_utils import (
-    seed_everything,
-)
-from models.early_exit import EarlyExitUViT
-from models.uvit import UViT
-from datasets.celeba import get_celeba_dataloader
-from datasets.cifar10 import get_cifar10_dataloader
-from ddpm_core import NoiseScheduler
-
-from tqdm import trange
 import torch
 import torch.nn.functional as F
 import torchvision
-from torch.utils.tensorboard import SummaryWriter
 from diffusers.optimization import get_cosine_schedule_with_warmup
+from torch.utils.tensorboard import SummaryWriter
+from tqdm import trange
+
+from checkpointer import Checkpointer
+from datasets.celeba import get_celeba_dataloader
+from datasets.cifar10 import get_cifar10_dataloader
+from ddpm_core import NoiseScheduler
+from models.early_exit import EarlyExitUViT
+from models.uvit import UViT
+from utils.train_utils import (
+    seed_everything,
+)
 
 
 class Trainer:
@@ -121,11 +121,15 @@ class Trainer:
     def _init_dataloader(self):
         if self.args.dataset == "cifar10":
             self.dataloader = get_cifar10_dataloader(
-                batch_size=self.args.batch_size, seed=self.args.seed, data_dir=self.args.data_path
+                batch_size=self.args.batch_size,
+                seed=self.args.seed,
+                data_dir=self.args.data_path,
             )
         elif self.args.adataset == "celeba":
             self.dataloader = get_celeba_dataloader(
-                batch_size=self.args.batch_size, seed=self.args.seed, data_dir=self.args.data_path
+                batch_size=self.args.batch_size,
+                seed=self.args.seed,
+                data_dir=self.args.data_path,
             )
         else:
             raise ValueError(f"Dataset {self.args.dataset} not implemented.")
@@ -316,32 +320,42 @@ class Trainer:
                 )
 
         elif self.args.model == "deediff_uvit":
-            backbone_output, classifier_outputs, ee_outputs = model(noisy_images, timesteps)
+            backbone_output, classifier_outputs, ee_outputs = self.model(
+                noisy_images, timesteps
+            )
 
             # Reshape list of L elements of shape (bs,) into tensor of shape (L, bs)
             classifier_outputs = torch.stack(classifier_outputs, dim=0)
             # Reshape list of L elements of shape (bs, C, H, W) into tensor of shape (L, bs, C, H, W)
             ee_outputs = torch.stack(ee_outputs, dim=0)
 
-            if args.parametrization == "predict_noise":
+            if self.args.parametrization == "predict_noise":
                 true_output = noise
-            elif args.parametrization == "predict_original":
+            elif self.args.parametrization == "predict_original":
                 true_output = clean_images
             else:
-                raise ValueError(f"Unknown parametrization type {args.parametrization}")
+                raise ValueError(
+                    f"Unknown parametrization type {self.args.parametrization}"
+                )
 
             # L_simple
             L_simple = F.mse_loss(backbone_output, true_output)
 
             # L_u_t
             u_t_hats = torch.stack(
-                [F.tanh(torch.abs(ee_output - true_output)) for ee_output in ee_outputs], dim=0
+                [
+                    F.tanh(torch.abs(ee_output - true_output))
+                    for ee_output in ee_outputs
+                ],
+                dim=0,
             )
             u_t_hats = u_t_hats.mean(dim=(-1, -2, -3))
             L_u_t = F.mse_loss(classifier_outputs, u_t_hats, reduction="sum")
 
             # L_UAL_t
-            L_n_t = torch.stack([(ee_output - true_output) ** 2 for ee_output in ee_outputs], dim=0)
+            L_n_t = torch.stack(
+                [(ee_output - true_output) ** 2 for ee_output in ee_outputs], dim=0
+            )
             L_n_t = L_n_t.mean(dim=(-1, -2, -3))
 
             # Trying u_t_hats, that is actually from 0 to 1 (classifier outputs is not!)

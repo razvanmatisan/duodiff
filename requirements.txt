@@ -1,8 +1,8 @@
 pre-commit
 ruff
 pytest
-torch==2.1.2
-torchvision==0.16.2
+torch
+torchvision
 einops
 tqdm
 scipy
@@ -15,7 +15,6 @@ ptflops
 torchmetrics
 torch-fidelity
 transformers
-accelerate
 Pillow
 tqdm
 numpy

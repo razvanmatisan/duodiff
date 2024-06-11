@@ -1,5 +1,7 @@
 import argparse
 
+import torch
+
 from trainer import Trainer
 from utils.train_utils import get_exp_name
 
@@ -178,7 +180,6 @@ def get_args():
         "--data_path", type=str, default="data", help="Directory for datasets"
     )
 
-
     return parser.parse_args()
 
 
@@ -187,6 +188,10 @@ def main():
 
     if args.exp_name is None:
         args.exp_name = get_exp_name(args)
+
+    torch.use_deterministic_algorithms(True)
+    torch.backends.cudnn.deterministic = True
+    torch.backends.cudnn.benchmark = False
 
     trainer = Trainer(args)
     logs = trainer.train()
