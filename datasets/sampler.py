@@ -37,6 +37,7 @@ class ResumableSeedableSampler(torch.utils.data.Sampler):
                 self.perm_index = 0
                 self.set_epoch(self.epoch + 1)
                 self.perm = self._get_perm()
+                print(f"Start epoch {self.epoch}")
 
     def __len__(self):
         return len(self.dataset)
@@ -48,10 +49,12 @@ class ResumableSeedableSampler(torch.utils.data.Sampler):
         return {
             "perm": self.perm,
             "perm_index": self.perm_index,
+            "epoch": self.epoch,
             "seed": self.seed,
         }
 
     def set_state(self, state):
         self.perm = state["perm"]
         self.perm_index = state["perm_index"]
+        self.epoch = state["epoch"]
         self.seed = state["seed"]
