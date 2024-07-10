@@ -8,6 +8,7 @@ from matplotlib import pyplot as plt
 from tqdm import tqdm
 
 from models.uvit import UViT
+from utils.train_utils import seed_everything
 
 checkpoint_path_by_parametrization = {
     "predict_noise": "../logs/6218182/cifar10_uvit.pth",
@@ -86,7 +87,8 @@ def predict_previous_postprocessing(model_output, x, t):
     return model_output + sigma_t * z
 
 
-def get_samples(batch_size: int, postprocessing: callable):
+def get_samples(batch_size: int, postprocessing: callable, seed: int):
+    seed_everything(seed)
     x = torch.randn(batch_size, 3, 32, 32).to(device)
 
     for t in tqdm(range(999, -1, -1)):
@@ -143,5 +145,5 @@ if __name__ == "__main__":
         torch.load(args.checkpoint_path, map_location="cpu")["model_state_dict"]
     )
     model = model.eval().to(device)
-    samples = get_samples(args.batch_size, postprocessing)
+    samples = get_samples(args.batch_size, postprocessing, args.seed)
     dump_samples(samples, args.output_folder)
