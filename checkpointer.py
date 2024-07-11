@@ -142,7 +142,7 @@ class Checkpointer:
                 torch.load(fpath, map_location="cpu")
                 print(f"Checkpoint {fpath} loaded successfully.")
                 return fpath
-            except:
-                print(f"Checkpoint {fpath} appears corrupted.")
+            except (IOError, OSError, RuntimeError) as e:
+                print(f"Checkpoint {fpath} appears corrupted: {e}")
 
         return None
