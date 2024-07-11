@@ -1,7 +1,7 @@
 import re
+from collections import OrderedDict
 from pathlib import Path
 from typing import Dict
-from collections import OrderedDict
 
 import torch
 
@@ -21,7 +21,7 @@ class Checkpointer:
         self.save_path = self.log_path / self.save_path
 
         checkpoint_last = self.save_path.parent / (
-            self.save_path.stem + f"_last" + self.save_path.suffix
+            self.save_path.stem + "_last" + self.save_path.suffix
         )
         self.checkpoint_last = checkpoint_last if checkpoint_last.is_file() else None
 
@@ -59,7 +59,7 @@ class Checkpointer:
         if new_checkpoint:
             path = path.parent / (path.stem + f"_step-{step}" + path.suffix)
         else:
-            path = path.parent / (path.stem + f"_last" + path.suffix)
+            path = path.parent / (path.stem + "_last" + path.suffix)
 
         state = {
             "step": step,
@@ -88,7 +88,7 @@ class Checkpointer:
         train_state: Dict = None,
     ):
         if checkpoint_path is None and self.last_state is None:
-            print(f"No checkpoint to load")
+            print("No checkpoint to load")
             return
 
         if checkpoint_path is not None:
