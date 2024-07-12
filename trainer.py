@@ -125,7 +125,7 @@ class Trainer:
                 seed=self.args.seed,
                 data_dir=self.args.data_path,
             )
-        elif self.args.adataset == "celeba":
+        elif self.args.dataset == "celeba":
             self.dataloader = get_celeba_dataloader(
                 batch_size=self.args.batch_size,
                 seed=self.args.seed,
