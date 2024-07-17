@@ -162,7 +162,7 @@ cython_debug/
 #  option (not recommended) you can uncomment the following to ignore the entire idea folder.
 #.idea/
 data/
-# checkpoints/
+checkpoints/
 Generated_samples/
 out_images/
 .DS_Store
@@ -172,3 +172,4 @@ out_images/
 images/
 
 archive/
+kl-f8/
