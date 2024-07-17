@@ -9,6 +9,7 @@ from tqdm import tqdm
 
 from models.uvit import UViT
 from utils.train_utils import seed_everything
+from utils.config_utils import load_config
 
 checkpoint_path_by_parametrization = {
     "predict_noise": "../logs/6218182/cifar10_uvit.pth",
@@ -31,19 +32,6 @@ def get_device():
 
 device = get_device()
 print(f"Using device {device}")
-
-model = UViT(
-    img_size=32,
-    patch_size=2,
-    embed_dim=512,
-    depth=12,
-    num_heads=8,
-    mlp_ratio=4,
-    qkv_bias=False,
-    mlp_time_embed=False,
-    num_classes=-1,
-)
-
 
 betas = torch.linspace(1e-4, 0.02, 1000).to(device)
 alphas = 1 - betas
@@ -87,7 +75,7 @@ def predict_previous_postprocessing(model_output, x, t):
     return model_output + sigma_t * z
 
 
-def get_samples(batch_size: int, postprocessing: callable, seed: int):
+def get_samples(model, batch_size: int, postprocessing: callable, seed: int):
     seed_everything(seed)
     x = torch.randn(batch_size, 3, 32, 32).to(device)
 
@@ -127,10 +115,17 @@ def get_args():
         required=True,
     )
     parser.add_argument("--output_folder", type=str, required=True)
+    parser.add_argument(
+        "--config_path",
+        type=str,
+        required=True,
+        help="Path to yaml config file",
+    )
+
     return parser.parse_args()
 
 
-if __name__ == "__main__":
+def main():
     args = get_args()
     if args.parametrization == "predict_noise":
         postprocessing = predict_noise_postprocessing
@@ -141,9 +136,16 @@ if __name__ == "__main__":
     else:
         raise ValueError(f"Invalid parametrization {args.parametrization}")
 
+    config = load_config(args.config_path)
+    model = UViT(**config["model_params"])
+
     model.load_state_dict(
         torch.load(args.checkpoint_path, map_location="cpu")["model_state_dict"]
     )
     model = model.eval().to(device)
-    samples = get_samples(args.batch_size, postprocessing, args.seed)
+    samples = get_samples(model, args.batch_size, postprocessing, args.seed)
     dump_samples(samples, args.output_folder)
+
+
+if __name__ == "__main__":
+    main()

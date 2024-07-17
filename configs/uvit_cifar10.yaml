@@ -1,0 +1,12 @@
+model_params:
+  model_name: "uvit"
+  classifier_type: "attention_probe"
+  img_size: 32
+  patch_size: 2
+  embed_dim: 512
+  depth: 12
+  num_heads: 8
+  mlp_ratio: 4
+  qkv_bias: False
+  mlp_time_embed: False
+  num_classes: -1

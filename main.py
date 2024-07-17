@@ -4,6 +4,7 @@ import torch
 
 from trainer import Trainer
 from utils.train_utils import get_exp_name
+from utils.config_utils import load_config
 
 
 def get_args():
@@ -135,6 +136,11 @@ def get_args():
 
     # Model
     parser.add_argument(
+        "--config_path",
+        type=str,
+        help="Path to model config. Overwrites command line arguments with arguments from the config file",
+    )
+    parser.add_argument(
         "--model",
         type=str,
         default="uvit",
@@ -188,6 +194,9 @@ def main():
 
     if args.exp_name is None:
         args.exp_name = get_exp_name(args)
+
+    config = load_config(args.config_path)
+    args.__dict__.update(config["model_params"])
 
     torch.use_deterministic_algorithms(True)
     torch.backends.cudnn.deterministic = True
