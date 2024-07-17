@@ -31,7 +31,7 @@ def get_imagenet_dataloader(
 
     dataset = datasets.ImageFolder(root=data_dir, transform=transform)
 
-    sampler = ResumableSeedableSampler(dataset, seed)
+    sampler = ResumableSeedableSampler(dataset, seed=seed)
 
     return DataLoader(
         dataset=dataset, batch_size=batch_size, drop_last=True, sampler=sampler

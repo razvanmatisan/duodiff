@@ -34,7 +34,7 @@ def get_cifar10_dataloader(
 
     dataset = CIFAR10(root=path, train=True, download=True, transform=transform)
 
-    sampler = ResumableSeedableSampler(dataset, seed)
+    sampler = ResumableSeedableSampler(dataset, seed=seed)
 
     return DataLoader(
         dataset=dataset, batch_size=batch_size, drop_last=True, sampler=sampler

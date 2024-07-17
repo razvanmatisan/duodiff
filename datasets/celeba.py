@@ -34,7 +34,7 @@ def get_celeba_dataloader(batch_size, seed, data_dir="data/"):
 
     dataset = CelebA(root=path, split="all", download=True, transform=data_transforms)
 
-    sampler = ResumableSeedableSampler(dataset, seed)
+    sampler = ResumableSeedableSampler(dataset, seed=seed)
 
     return DataLoader(
         dataset=dataset,

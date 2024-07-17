@@ -4,7 +4,7 @@ import torch
 
 # https://gist.github.com/usamec/1b3b4dcbafad2d58faa71a9633eea6a5
 class ResumableSeedableSampler(torch.utils.data.Sampler):
-    def __init__(self, dataset, shuffle=True, seed=None):
+    def __init__(self, dataset, shuffle: bool = True, seed: int = None):
         self.dataset = dataset
         self.generator = torch.Generator()
         self.seed = seed if seed is not None else np.random.randint(2**31)
