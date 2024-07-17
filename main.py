@@ -195,8 +195,9 @@ def main():
     if args.exp_name is None:
         args.exp_name = get_exp_name(args)
 
-    config = load_config(args.config_path)
-    args.__dict__.update(config["model_params"])
+    if hasattr(args, "config_path") and args.config_path is not None:
+        config = load_config(args.config_path)
+        args.__dict__.update(config["model_params"])
 
     torch.use_deterministic_algorithms(True)
     torch.backends.cudnn.deterministic = True
