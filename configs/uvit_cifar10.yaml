@@ -1,5 +1,4 @@
 model_params:
-  classifier_type: "attention_probe"
   img_size: 32
   patch_size: 2
   embed_dim: 512
