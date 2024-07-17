@@ -1,5 +1,4 @@
 model_params:
-  model_name: "uvit"
   classifier_type: "attention_probe"
   img_size: 64
   patch_size: 4
