@@ -12,8 +12,10 @@ from tqdm import trange
 from checkpointer import Checkpointer
 from datasets.celeba import get_celeba_dataloader
 from datasets.cifar10 import get_cifar10_dataloader
+from datasets.imagenet import get_imagenet_dataloader
 from ddpm_core import NoiseScheduler
 from models.early_exit import EarlyExitUViT
+from models.utils.autoencoder import get_autoencoder
 from models.uvit import UViT
 from utils.train_utils import (
     seed_everything,
@@ -41,6 +43,11 @@ class Trainer:
         self._save_hparams()
 
         self.train_state = dict()
+        self.autoencoder = (
+            get_autoencoder(self.args.autoencoder_checkpoint_path)
+            if self.args.autoencoder_checkpoint_path is not None
+            else None
+        )
 
         if self.args.resume:
             self.checkpointer.maybe_load_state(
@@ -81,6 +88,7 @@ class Trainer:
             model = UViT(
                 img_size=self.args.img_size,
                 patch_size=self.args.patch_size,
+                in_chans=self.args.num_channels,
                 embed_dim=self.args.embed_dim,
                 depth=self.args.depth,
                 num_heads=self.args.num_heads,
@@ -127,6 +135,12 @@ class Trainer:
             )
         elif self.args.dataset == "celeba":
             self.dataloader = get_celeba_dataloader(
+                batch_size=self.args.batch_size,
+                seed=self.args.seed,
+                data_dir=self.args.data_path,
+            )
+        elif self.args.dataset == "imagenet":
+            self.dataloader = get_imagenet_dataloader(
                 batch_size=self.args.batch_size,
                 seed=self.args.seed,
                 data_dir=self.args.data_path,
@@ -233,6 +247,12 @@ class Trainer:
             seed_everything(self.args.seed + step)
 
             batch = next(dataloader_iterator)
+
+            if self.autoencoder is not None:
+                batch[0] = self.autoencoder.encode(
+                    batch[0]
+                )  # (bs, 3, 256, 256) -> (bs, 4, 32, 32)
+
             logging_dict = self._run_batch(batch)
             self._log(step, logging_dict)
 

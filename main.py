@@ -3,8 +3,8 @@ import argparse
 import torch
 
 from trainer import Trainer
-from utils.train_utils import get_exp_name
 from utils.config_utils import load_config
+from utils.train_utils import get_exp_name
 
 
 def get_args():
@@ -162,8 +162,13 @@ def get_args():
 
     parser.add_argument("--img_size", type=int, default=32, help="Image size")
     parser.add_argument("--patch_size", type=int, default=2, help="Patch size")
+    parser.add_argument(
+        "--num_channels", type=int, default=3, help="Number of input channels from UViT"
+    )
     parser.add_argument("--embed_dim", type=int, default=512, help="Embed dim")
-    parser.add_argument("--depth", type=int, default=12, help="Depth")
+    parser.add_argument(
+        "--depth", type=int, default=13, help="Number of transformer blocks from UViT"
+    )
     parser.add_argument("--num_heads", type=int, default=8, help="Number of heads")
     parser.add_argument("--mlp_ratio", type=int, default=4, help="MLP ratio")
     parser.add_argument(
@@ -179,7 +184,7 @@ def get_args():
         "--dataset",
         type=str,
         default="cifar10",
-        choices=["cifar10", "celeba"],
+        choices=["cifar10", "celeba", "imagenet"],
         help="Dataset name",
     )
     parser.add_argument(
@@ -198,6 +203,8 @@ def main():
     if hasattr(args, "config_path") and args.config_path is not None:
         config = load_config(args.config_path)
         args.__dict__.update(config["model_params"])
+
+    args.__dict__.update(config["autoencoder"]) if args.dataset == "imagenet" else None
 
     torch.use_deterministic_algorithms(True)
     torch.backends.cudnn.deterministic = True
