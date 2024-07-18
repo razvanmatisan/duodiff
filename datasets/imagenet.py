@@ -1,6 +1,7 @@
 from torch.utils.data import DataLoader
 from torchvision import datasets, transforms
 
+from pathlib import Path
 from datasets.sampler import ResumableSeedableSampler
 
 
@@ -29,7 +30,9 @@ def get_imagenet_dataloader(
         [transforms.ToTensor(), transforms.Normalize(mean, std)]
     )
 
-    dataset = datasets.ImageFolder(root=data_dir, transform=transform)
+    path = Path(data_dir) / "imagenet"
+
+    dataset = datasets.ImageFolder(root=path, transform=transform)
 
     sampler = ResumableSeedableSampler(dataset, seed=seed)
 
