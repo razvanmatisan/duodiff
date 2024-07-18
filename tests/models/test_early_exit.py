@@ -4,9 +4,38 @@ import torch
 from models.early_exit import AttentionProbe, EarlyExitUViT, MLPProbe, OutputHead
 from models.uvit import UViT
 
+imagenet_class_cond_config = dict(
+    img_size=32,
+    patch_size=2,
+    in_chans=4,
+    embed_dim=1024,
+    depth=21,
+    num_heads=16,
+    mlp_ratio=4,
+    qkv_bias=False,
+    mlp_time_embed=False,
+    num_classes=1000,
+    normalize_timesteps=True,
+)
+
+imagenet_uncond_config = dict(
+    img_size=32,
+    patch_size=2,
+    in_chans=4,
+    embed_dim=1024,
+    depth=21,
+    num_heads=16,
+    mlp_ratio=4,
+    qkv_bias=False,
+    mlp_time_embed=False,
+    num_classes=-1,
+    normalize_timesteps=True,
+)
+
 celeba_config = dict(
     img_size=64,
     patch_size=4,
+    in_chans=3,
     embed_dim=512,
     depth=12,
     num_heads=8,
@@ -14,11 +43,13 @@ celeba_config = dict(
     qkv_bias=False,
     mlp_time_embed=False,
     num_classes=-1,
+    normalize_timesteps=True,
 )
 
 cifar10_config = dict(
     img_size=32,
     patch_size=2,
+    in_chans=3,
     embed_dim=512,
     depth=12,
     num_heads=8,
@@ -26,6 +57,7 @@ cifar10_config = dict(
     qkv_bias=False,
     mlp_time_embed=False,
     num_classes=-1,
+    normalize_timesteps=True,
 )
 
 batch_size = 8
