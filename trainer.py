@@ -30,6 +30,12 @@ class Trainer:
         seed_everything(args.seed)
 
         self.args = args
+        self.autoencoder = (
+            get_autoencoder(self.args.autoencoder_checkpoint_path)
+            if hasattr(self.args, "autoencoder_checkpoint_path")
+            else None
+        )
+
         self._make_log_dir()
         self._init_device()
         self._init_checkpointer()
@@ -43,11 +49,6 @@ class Trainer:
         self._save_hparams()
 
         self.train_state = dict()
-        self.autoencoder = (
-            get_autoencoder(self.args.autoencoder_checkpoint_path)
-            if self.args.autoencoder_checkpoint_path is not None
-            else None
-        )
 
         if self.args.resume:
             self.checkpointer.maybe_load_state(

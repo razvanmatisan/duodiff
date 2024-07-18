@@ -204,7 +204,8 @@ def main():
         config = load_config(args.config_path)
         args.__dict__.update(config["model_params"])
 
-    args.__dict__.update(config["autoencoder"]) if args.dataset == "imagenet" else None
+    if args.dataset == "imagenet":
+        args.__dict__.update(config["autoencoder"])
 
     torch.use_deterministic_algorithms(True)
     torch.backends.cudnn.deterministic = True
