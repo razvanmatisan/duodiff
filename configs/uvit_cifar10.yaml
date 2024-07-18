@@ -1,10 +1,12 @@
 model_params:
   img_size: 32
   patch_size: 2
+  num_channels: 3
   embed_dim: 512
-  depth: 12
+  depth: 13
   num_heads: 8
   mlp_ratio: 4
   qkv_bias: False
   mlp_time_embed: False
   num_classes: -1
+  normalize_timesteps: True
