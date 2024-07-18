@@ -500,7 +500,7 @@ class FrozenAutoencoderKL(nn.Module):
             raise NotImplementedError
 
 
-def get_model(pretrained_path, scale_factor=0.18215):
+def get_autoencoder(pretrained_path, scale_factor=0.18215):
     ddconfig = dict(
         double_z=True,
         z_channels=4,
