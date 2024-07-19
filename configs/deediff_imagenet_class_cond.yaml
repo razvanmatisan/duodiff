@@ -8,8 +8,9 @@ model_params:
   mlp_ratio: 4
   qkv_bias: False
   mlp_time_embed: False
-  num_classes: -1
+  num_classes: 1001
   normalize_timesteps: False
+  classifier_type: "attention_probe"
 
 autoencoder:
   autoencoder_checkpoint_path: ./checkpoints/autoencoder/autoencoder_kl.pth

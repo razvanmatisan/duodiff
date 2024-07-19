@@ -10,3 +10,4 @@ model_params:
   mlp_time_embed: False
   num_classes: -1
   normalize_timesteps: True
+  classifier_type: "attention_probe"

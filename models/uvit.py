@@ -254,6 +254,7 @@ class UViT(nn.Module):
 
         self.num_classes = num_classes
         self.in_chans = in_chans
+        self.depth = depth
 
         self.patch_embed = PatchEmbed(
             patch_size=patch_size, in_chans=in_chans, embed_dim=embed_dim

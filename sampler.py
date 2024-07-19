@@ -7,9 +7,10 @@ from einops import rearrange
 from matplotlib import pyplot as plt
 from tqdm import tqdm
 
+from models.utils.autoencoder import get_autoencoder
 from models.uvit import UViT
-from utils.train_utils import seed_everything
 from utils.config_utils import load_config
+from utils.train_utils import seed_everything
 
 checkpoint_path_by_parametrization = {
     "predict_noise": "../logs/6218182/cifar10_uvit.pth",
@@ -75,15 +76,29 @@ def predict_previous_postprocessing(model_output, x, t):
     return model_output + sigma_t * z
 
 
-def get_samples(model, batch_size: int, postprocessing: callable, seed: int):
+def get_samples(
+    model,
+    batch_size: int,
+    postprocessing: callable,
+    seed: int,
+    num_channels: int,
+    sample_height: int,
+    sample_width: int,
+    y: int = None,
+    autoencoder=None,
+):
     seed_everything(seed)
-    x = torch.randn(batch_size, 3, 32, 32).to(device)
+    x = torch.randn(batch_size, num_channels, sample_height, sample_width).to(device)
 
     for t in tqdm(range(999, -1, -1)):
         time_tensor = t * torch.ones(batch_size, device=device)
         with torch.no_grad():
-            model_output = model(x, time_tensor)
+            model_output = model(x, time_tensor, y)
         x = postprocessing(model_output, x, t)
+
+    if autoencoder:
+        print("Decode the images...")
+        x = autoencoder.decode(x)
 
     samples = (x + 1) / 2
     samples = rearrange(samples, "b c h w -> b h w c")
@@ -139,11 +154,36 @@ def main():
     config = load_config(args.config_path)
     model = UViT(**config["model_params"])
 
-    model.load_state_dict(
-        torch.load(args.checkpoint_path, map_location="cpu")["model_state_dict"]
-    )
+    num_channels = config["model_params"]["in_chans"]
+    sample_height = config["model_params"]["img_size"]
+    sample_width = config["model_params"]["img_size"]
+
+    print(num_channels)
+    print(sample_height)
+
+    print(config)
+
+    model.load_state_dict(torch.load(args.checkpoint_path, map_location="cpu"))
     model = model.eval().to(device)
-    samples = get_samples(model, args.batch_size, postprocessing, args.seed)
+
+    y = torch.ones(args.batch_size, dtype=torch.int).to(device) * 3
+    autoencoder = (
+        get_autoencoder(config["autoencoder"]["autoencoder_checkpoint_path"])
+        if "autoencoder" in config
+        else None
+    ).to(device)
+
+    samples = get_samples(
+        model,
+        args.batch_size,
+        postprocessing,
+        args.seed,
+        num_channels,
+        sample_height,
+        sample_width,
+        y,
+        autoencoder,
+    )
     dump_samples(samples, args.output_folder)
 
 

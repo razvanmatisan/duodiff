@@ -163,7 +163,7 @@ def get_args():
     parser.add_argument("--img_size", type=int, default=32, help="Image size")
     parser.add_argument("--patch_size", type=int, default=2, help="Patch size")
     parser.add_argument(
-        "--num_channels", type=int, default=3, help="Number of input channels from UViT"
+        "--in_chans", type=int, default=3, help="Number of input channels from UViT"
     )
     parser.add_argument("--embed_dim", type=int, default=512, help="Embed dim")
     parser.add_argument(
