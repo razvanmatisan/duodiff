@@ -19,10 +19,10 @@ class OutputHead(nn.Module):
             nn.Conv2d(in_chans, in_chans, 3, padding=1) if conv else nn.Identity()
         )
 
-    def forward(self, x):
+    def forward(self, x, extras):
         x = self.norm(x)
         x = self.decoder_pred(x)
-        x = x[:, 1:, :]  # Ignore time vector
+        x = x[:, extras:, :]  # Ignore time (and class) vector
         x = unpatchify(x, self.in_chans)
         x = self.final_layer(x)
         return x
@@ -216,11 +216,14 @@ class EarlyExitUViT(nn.Module):
         # TODO: FIXME (right now we have to modify this both in get_classifier and here)
         if classifier_type == "attention_probe":
             self.matrix = nn.ModuleDict(
-                {f"{i}": AttentionProbe(embed_dim=uvit.embed_dim) for i in range(13)}
+                {
+                    f"{i}": AttentionProbe(embed_dim=uvit.embed_dim)
+                    for i in range(uvit.depth)
+                }
             )
         elif classifier_type == "mlp_probe_per_layer":
             self.matrix = nn.ModuleDict(
-                {f"{i}": MLPProbe(embed_dim=uvit.embed_dim) for i in range(13)}
+                {f"{i}": MLPProbe(embed_dim=uvit.embed_dim) for i in range(uvit.depth)}
             )
         elif classifier_type == "mlp_probe_per_timestep":
             self.matrix = nn.ModuleDict(
@@ -231,7 +234,7 @@ class EarlyExitUViT(nn.Module):
                 {
                     f"{i}, {t}": MLPProbe(embed_dim=uvit.embed_dim)
                     for t in range(1000)
-                    for i in range(13)
+                    for i in range(uvit.depth)
                 }
             )
 
@@ -262,7 +265,7 @@ class EarlyExitUViT(nn.Module):
             ]
         )
 
-    def forward(self, x, timesteps):
+    def forward(self, x, timesteps, y=None):
         t = int(timesteps[0])
         if self.uvit.normalize_timesteps:
             timesteps = timesteps.float() / 1000
@@ -277,29 +280,35 @@ class EarlyExitUViT(nn.Module):
         )
         time_token = time_token.unsqueeze(dim=1)
         x = torch.cat((time_token, x), dim=1)
+        if y is not None:
+            label_emb = self.uvit.label_emb(y)
+            label_emb = label_emb.unsqueeze(dim=1)
+            x = torch.cat((label_emb, x), dim=1)
         x = x + self.uvit.pos_embed
 
         skips = []
 
         for blk, layer_id, output_head in zip(
-            self.uvit.in_blocks, range(6), self.in_blocks_heads
+            self.uvit.in_blocks, range(self.uvit.depth // 2), self.in_blocks_heads
         ):
             classifier = self.get_classifer(t, layer_id)
-            outputs.append(output_head(x))
+            outputs.append(output_head(x, self.uvit.extras))
             classifier_outputs.append(classifier(x))
             x = blk(x)
             skips.append(x)
 
-        classifier = self.get_classifer(t, 6)
-        outputs.append(self.mid_block_head(x))
+        classifier = self.get_classifer(t, self.uvit.depth // 2)
+        outputs.append(self.mid_block_head(x, self.uvit.extras))
         classifier_outputs.append(classifier(x))
         x = self.uvit.mid_block(x)
 
         for blk, layer_id, output_head in zip(
-            self.uvit.out_blocks, range(7, 13), self.out_blocks_heads
+            self.uvit.out_blocks,
+            range(self.uvit.depth // 2 + 1, self.uvit.depth),
+            self.out_blocks_heads,
         ):
             classifier = self.get_classifer(t, layer_id)
-            outputs.append(output_head(x))
+            outputs.append(output_head(x, self.uvit.extras))
             classifier_outputs.append(classifier(x))
             x = blk(x, skips.pop())
 
