@@ -9,4 +9,5 @@ python sampler.py \
     --seed 1 \
     --config_path $config_path \
     --checkpoint_path $checkpoint_path \
-    --output_folder $output_folder
+    --output_folder $output_folder \
+    --class_id 3

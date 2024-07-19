@@ -136,6 +136,12 @@ def get_args():
         required=True,
         help="Path to yaml config file",
     )
+    parser.add_argument(
+        "--class_id",
+        type=int,
+        default=None,
+        help="Number up to 1000 that corresponds to a class",
+    )
 
     return parser.parse_args()
 
@@ -166,7 +172,11 @@ def main():
     model.load_state_dict(torch.load(args.checkpoint_path, map_location="cpu"))
     model = model.eval().to(device)
 
-    y = torch.ones(args.batch_size, dtype=torch.int).to(device) * 3
+    y = (
+        torch.ones(args.batch_size, dtype=torch.int).to(device) * args.class_id
+        if args.class_id is not None
+        else None
+    )
     autoencoder = (
         get_autoencoder(config["autoencoder"]["autoencoder_checkpoint_path"])
         if "autoencoder" in config
