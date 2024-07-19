@@ -1,7 +1,7 @@
 model_params:
   img_size: 32
   patch_size: 2
-  num_channels: 4
+  in_chans: 4
   embed_dim: 1024
   depth: 21
   num_heads: 16
@@ -9,7 +9,7 @@ model_params:
   qkv_bias: False
   mlp_time_embed: False
   num_classes: -1
-  normalize_timesteps: True
+  normalize_timesteps: False
 
 autoencoder:
   autoencoder_checkpoint_path: ./checkpoints/autoencoder/autoencoder_kl.pth

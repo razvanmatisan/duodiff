@@ -89,7 +89,7 @@ class Trainer:
             model = UViT(
                 img_size=self.args.img_size,
                 patch_size=self.args.patch_size,
-                in_chans=self.args.num_channels,
+                in_chans=self.args.in_chans,
                 embed_dim=self.args.embed_dim,
                 depth=self.args.depth,
                 num_heads=self.args.num_heads,
@@ -215,7 +215,11 @@ class Trainer:
             samples, logging_dict = self.noise_scheduler.sample(
                 model=self.model,
                 num_steps=self.args.num_timesteps,
-                data_shape=(3, self.args.sample_height, self.args.sample_width),
+                data_shape=(
+                    self.args.in_chans,
+                    self.args.sample_height,
+                    self.args.sample_width,
+                ),
                 num_samples=self.args.n_samples,
                 seed=self.args.sample_seed,
                 model_type=self.args.model,
@@ -294,6 +298,7 @@ class Trainer:
         data = batch[0].to(self.device)
         batch_size = data.size(0)
         clean_images = data
+        labels = batch[1].to(self.device)
 
         timesteps = torch.randint(
             0, self.args.num_timesteps, (batch_size,), device=self.device
@@ -342,7 +347,7 @@ class Trainer:
 
         elif self.args.model == "deediff_uvit":
             backbone_output, classifier_outputs, ee_outputs = self.model(
-                noisy_images, timesteps
+                noisy_images, timesteps, labels
             )
 
             # Reshape list of L elements of shape (bs,) into tensor of shape (L, bs)
@@ -371,6 +376,7 @@ class Trainer:
                 dim=0,
             )
             u_t_hats = u_t_hats.mean(dim=(-1, -2, -3))
+            classifier_outputs = classifier_outputs.unsqueeze(1)
             L_u_t = F.mse_loss(classifier_outputs, u_t_hats, reduction="sum")
 
             # L_UAL_t
