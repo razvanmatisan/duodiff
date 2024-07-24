@@ -1,16 +1,16 @@
 from pathlib import Path
 
-from PIL import Image
 import torch
+from PIL import Image
 from torchvision import transforms
 from torchvision.utils import save_image
 
-from datasets.cifar10 import get_cifar10_dataloader
 from datasets.celeba import get_celeba_dataloader
+from datasets.cifar10 import get_cifar10_dataloader
 
 
 def read_samples(path):
-    transform = transforms.Compose([transforms.Resize((32, 32)), transforms.ToTensor()])
+    transform = transforms.Compose([transforms.ToTensor()])
 
     tensor_list = []
     for p in Path(path).rglob("*.png"):
@@ -24,9 +24,9 @@ def read_samples(path):
 
 def get_dataset_samples(dataset_name, data_path, seed, n_samples):
     if dataset_name == "cifar10":
-        dataset = get_cifar10_dataloader(n_samples, seed, data_path)
+        dataset = get_cifar10_dataloader(n_samples, seed, data_path, normalize=False)
     elif dataset_name == "celeba":
-        dataset = get_celeba_dataloader(n_samples, seed, data_path)
+        dataset = get_celeba_dataloader(n_samples, seed, data_path, normalize=False)
     else:
         raise ValueError("Incorrect dataset name")
 
