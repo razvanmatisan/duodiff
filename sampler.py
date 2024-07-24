@@ -1,3 +1,4 @@
+import time
 from argparse import ArgumentParser
 from pathlib import Path
 
@@ -105,17 +106,19 @@ def get_samples(
     return samples.cpu().numpy()
 
 
-def dump_samples(samples, output_folder):
-    output_folder = Path(output_folder)
-    output_folder.mkdir(parents=True, exist_ok=True)
-
-    plt.hist(samples.flatten())
-    plt.savefig(output_folder / "histogram.png")
-    plt.clf()
+def dump_samples(samples, output_folder: Path):
+    # plt.hist(samples.flatten())
+    # plt.savefig(output_folder / "histogram.png")
+    # plt.clf()
 
     for sample_id, sample in enumerate(samples):
         sample = np.clip(sample, 0, 1)
         plt.imsave(output_folder / f"{sample_id}.png", sample)
+
+
+def dump_statistics(elapsed_time, output_folder: Path):
+    with open(output_folder / "statistics.txt", "w") as f:
+        f.write(f"Elapsed time: {elapsed_time} s\n")
 
 
 def get_args():
@@ -148,6 +151,10 @@ def get_args():
 
 def main():
     args = get_args()
+
+    output_folder = Path(args.output_folder)
+    output_folder.mkdir(parents=True, exist_ok=True)
+
     if args.parametrization == "predict_noise":
         postprocessing = predict_noise_postprocessing
     elif args.parametrization == "predict_original":
@@ -164,12 +171,10 @@ def main():
     sample_height = config["model_params"]["img_size"]
     sample_width = config["model_params"]["img_size"]
 
-    print(num_channels)
-    print(sample_height)
-
-    print(config)
-
-    model.load_state_dict(torch.load(args.checkpoint_path, map_location="cpu"))
+    state_dict = torch.load(args.checkpoint_path, map_location="cpu")
+    if "model_state_dict" in state_dict:
+        state_dict = state_dict["model_state_dict"]
+    model.load_state_dict(state_dict)
     model = model.eval().to(device)
 
     y = (
@@ -177,12 +182,14 @@ def main():
         if args.class_id is not None
         else None
     )
-    autoencoder = (
-        get_autoencoder(config["autoencoder"]["autoencoder_checkpoint_path"])
-        if "autoencoder" in config
-        else None
-    ).to(device)
+    if "autoencoder" in config:
+        autoencoder = get_autoencoder(
+            config["autoencoder"]["autoencoder_checkpoint_path"]
+        ).to(device)
+    else:
+        autoencoder = None
 
+    tic = time.time()
     samples = get_samples(
         model,
         args.batch_size,
@@ -194,7 +201,10 @@ def main():
         y,
         autoencoder,
     )
-    dump_samples(samples, args.output_folder)
+    tac = time.time()
+    dump_statistics(tac - tic, output_folder)
+
+    dump_samples(samples, output_folder)
 
 
 if __name__ == "__main__":
