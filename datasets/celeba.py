@@ -7,7 +7,7 @@ from torchvision.datasets import CelebA
 from datasets.sampler import ResumableSeedableSampler
 
 
-def get_celeba_dataloader(batch_size, seed, data_dir="data/"):
+def get_celeba_dataloader(batch_size, seed, data_dir="data/", normalize: bool = True):
     """
     Builds a dataloader with all images from the CelebA dataset.
     Args:
@@ -18,17 +18,27 @@ def get_celeba_dataloader(batch_size, seed, data_dir="data/"):
         DataLoader: DataLoader object containing the dataset.
 
     """
-    mean = (0.5, 0.5, 0.5)
-    std = (0.5, 0.5, 0.5)
 
-    data_transforms = transforms.Compose(
-        [
-            transforms.ToTensor(),
-            transforms.Normalize(mean, std),
-            transforms.CenterCrop((178, 178)),
-            transforms.Resize((64, 64)),
-        ]
-    )
+    if normalize:
+        mean = (0.5, 0.5, 0.5)
+        std = (0.5, 0.5, 0.5)
+
+        data_transforms = transforms.Compose(
+            [
+                transforms.ToTensor(),
+                transforms.Normalize(mean, std),
+                transforms.CenterCrop((178, 178)),
+                transforms.Resize((64, 64)),
+            ]
+        )
+    else:
+        data_transforms = transforms.Compose(
+            [
+                transforms.ToTensor(),
+                transforms.CenterCrop((178, 178)),
+                transforms.Resize((64, 64)),
+            ]
+        )
 
     path = Path(data_dir)
 
