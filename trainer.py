@@ -298,7 +298,7 @@ class Trainer:
         data = batch[0].to(self.device)
         batch_size = data.size(0)
         clean_images = data
-        labels = batch[1].to(self.device)
+        labels = batch[1].to(self.device) if self.args.dataset == "imagenet" else None
 
         timesteps = torch.randint(
             0, self.args.num_timesteps, (batch_size,), device=self.device
