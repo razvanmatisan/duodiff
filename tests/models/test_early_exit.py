@@ -37,7 +37,7 @@ celeba_config = dict(
     patch_size=4,
     in_chans=3,
     embed_dim=512,
-    depth=12,
+    depth=13,
     num_heads=8,
     mlp_ratio=4,
     qkv_bias=False,
@@ -51,7 +51,7 @@ cifar10_config = dict(
     patch_size=2,
     in_chans=3,
     embed_dim=512,
-    depth=12,
+    depth=13,
     num_heads=8,
     mlp_ratio=4,
     qkv_bias=False,
@@ -73,7 +73,7 @@ def test_output_head():
 
     x = torch.zeros((16, 257, 512))
 
-    y = output_head(x)
+    y = output_head(x, extras=1)
     assert y.shape == (16, 3, 32, 32)
 
 
@@ -109,7 +109,7 @@ def test_backward(classifier_type):
     y, classifier_outputs, outputs = model(x, t)
 
     assert y.shape == x.shape
-    assert len(outputs) == len(classifier_outputs) == 13
+    assert len(outputs) == len(classifier_outputs) == model.uvit.depth
 
     fake_loss = torch.sum(y)
     fake_loss.backward()
