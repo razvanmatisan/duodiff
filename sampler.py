@@ -165,7 +165,19 @@ def main():
         raise ValueError(f"Invalid parametrization {args.parametrization}")
 
     config = load_config(args.config_path)
-    model = UViT(**config["model_params"])
+    model = UViT(
+        img_size=config["model_params"]["img_size"],
+        patch_size=config["model_params"]["patch_size"],
+        in_chans=config["model_params"]["in_chans"],
+        embed_dim=config["model_params"]["embed_dim"],
+        depth=config["model_params"]["depth"],
+        num_heads=config["model_params"]["num_heads"],
+        mlp_ratio=config["model_params"]["mlp_ratio"],
+        qkv_bias=config["model_params"]["qkv_bias"],
+        mlp_time_embed=config["model_params"]["mlp_time_embed"],
+        num_classes=config["model_params"]["num_classes"],
+        normalize_timesteps=config["model_params"]["normalize_timesteps"],
+    )
 
     num_channels = config["model_params"]["in_chans"]
     sample_height = config["model_params"]["img_size"]
