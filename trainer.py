@@ -30,11 +30,6 @@ class Trainer:
         seed_everything(args.seed)
 
         self.args = args
-        self.autoencoder = (
-            get_autoencoder(self.args.autoencoder_checkpoint_path)
-            if hasattr(self.args, "autoencoder_checkpoint_path")
-            else None
-        )
 
         self._make_log_dir()
         self._init_device()
@@ -47,6 +42,12 @@ class Trainer:
         self._init_writer()
         self._init_amp()
         self._save_hparams()
+
+        self.autoencoder = (
+            get_autoencoder(self.args.autoencoder_checkpoint_path)
+            if hasattr(self.args, "autoencoder_checkpoint_path")
+            else None
+        ).to(self.device)
 
         self.train_state = dict()
 
@@ -140,11 +141,19 @@ class Trainer:
                 seed=self.args.seed,
                 data_dir=self.args.data_path,
             )
-        elif self.args.dataset == "imagenet":
+        elif self.args.dataset == "imagenet64":
             self.dataloader = get_imagenet_dataloader(
                 batch_size=self.args.batch_size,
                 seed=self.args.seed,
                 data_dir=self.args.data_path,
+                resize=True,
+            )
+        elif self.args.dataset == "imagenet256":
+            self.dataloader = get_imagenet_dataloader(
+                batch_size=self.args.batch_size,
+                seed=self.args.seed,
+                data_dir=self.args.data_path,
+                resize=False,
             )
         else:
             raise ValueError(f"Dataset {self.args.dataset} not implemented.")
@@ -255,7 +264,7 @@ class Trainer:
 
             if self.autoencoder is not None:
                 batch[0] = self.autoencoder.encode(
-                    batch[0]
+                    batch[0].to(self.device)
                 )  # (bs, 3, 256, 256) -> (bs, 4, 32, 32)
 
             logging_dict = self._run_batch(batch)
@@ -298,7 +307,7 @@ class Trainer:
         data = batch[0].to(self.device)
         batch_size = data.size(0)
         clean_images = data
-        labels = batch[1].to(self.device) if self.args.dataset == "imagenet" else None
+        labels = batch[1].to(self.device) if "imagenet" in self.args.dataset else None
 
         timesteps = torch.randint(
             0, self.args.num_timesteps, (batch_size,), device=self.device
@@ -308,13 +317,13 @@ class Trainer:
 
         if self.args.model == "uvit":
             if self.args.parametrization == "predict_noise":
-                predicted_noise = self.model(noisy_images, timesteps)
+                predicted_noise = self.model(noisy_images, timesteps, labels)
                 loss = F.mse_loss(predicted_noise, noise)
             elif self.args.parametrization == "predict_original":
-                predicted_original = self.model(noisy_images, timesteps)
+                predicted_original = self.model(noisy_images, timesteps, labels)
                 loss = F.mse_loss(predicted_original, clean_images)
             elif self.args.parametrization == "predict_previous":
-                predicted_previous = self.model(noisy_images, timesteps)
+                predicted_previous = self.model(noisy_images, timesteps, labels)
 
                 betas = torch.linspace(1e-4, 0.02, 1000).to(self.device)
                 alphas = 1 - betas
@@ -376,7 +385,6 @@ class Trainer:
                 dim=0,
             )
             u_t_hats = u_t_hats.mean(dim=(-1, -2, -3))
-            classifier_outputs = classifier_outputs.unsqueeze(1)
             L_u_t = F.mse_loss(classifier_outputs, u_t_hats, reduction="sum")
 
             # L_UAL_t

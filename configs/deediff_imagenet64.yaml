@@ -1,0 +1,16 @@
+model_params:
+  img_size: 64
+  patch_size: 4
+  in_chans: 3
+  embed_dim: 768
+  depth: 17
+  num_heads: 12
+  mlp_ratio: 4
+  qkv_bias: False
+  mlp_time_embed: False
+  num_classes: 1000
+  normalize_timesteps: False
+  classifier_type: "mlp_probe_per_layer"
+
+autoencoder:
+  autoencoder_checkpoint_path: ./checkpoints/autoencoder/autoencoder_kl.pth

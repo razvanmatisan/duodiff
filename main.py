@@ -184,7 +184,7 @@ def get_args():
         "--dataset",
         type=str,
         default="cifar10",
-        choices=["cifar10", "celeba", "imagenet"],
+        choices=["cifar10", "celeba", "imagenet64", "imagenet256"],
         help="Dataset name",
     )
     parser.add_argument(
@@ -204,7 +204,7 @@ def main():
         config = load_config(args.config_path)
         args.__dict__.update(config["model_params"])
 
-    if args.dataset == "imagenet":
+    if args.dataset == "imagenet256":
         args.__dict__.update(config["autoencoder"])
 
     torch.use_deterministic_algorithms(True)
