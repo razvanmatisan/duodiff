@@ -30,11 +30,6 @@ class Trainer:
         seed_everything(args.seed)
 
         self.args = args
-        self.autoencoder = (
-            get_autoencoder(self.args.autoencoder_checkpoint_path)
-            if hasattr(self.args, "autoencoder_checkpoint_path")
-            else None
-        )
 
         self._make_log_dir()
         self._init_device()
@@ -47,6 +42,12 @@ class Trainer:
         self._init_writer()
         self._init_amp()
         self._save_hparams()
+
+        self.autoencoder = (
+            get_autoencoder(self.args.autoencoder_checkpoint_path)
+            if hasattr(self.args, "autoencoder_checkpoint_path")
+            else None
+        ).to(self.device)
 
         self.train_state = dict()
 
@@ -263,7 +264,7 @@ class Trainer:
 
             if self.autoencoder is not None:
                 batch[0] = self.autoencoder.encode(
-                    batch[0]
+                    batch[0].to(self.device)
                 )  # (bs, 3, 256, 256) -> (bs, 4, 32, 32)
 
             logging_dict = self._run_batch(batch)
@@ -384,7 +385,6 @@ class Trainer:
                 dim=0,
             )
             u_t_hats = u_t_hats.mean(dim=(-1, -2, -3))
-            classifier_outputs = classifier_outputs.unsqueeze(1)
             L_u_t = F.mse_loss(classifier_outputs, u_t_hats, reduction="sum")
 
             # L_UAL_t
