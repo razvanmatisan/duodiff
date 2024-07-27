@@ -43,11 +43,10 @@ class Trainer:
         self._init_amp()
         self._save_hparams()
 
-        self.autoencoder = (
-            get_autoencoder(self.args.autoencoder_checkpoint_path)
-            if hasattr(self.args, "autoencoder_checkpoint_path")
-            else None
-        ).to(self.device)
+        if hasattr(self.args, "autoencoder_checkpoint_path"):
+            self.autoencoder = get_autoencoder(self.args.autoencoder_checkpoint_path).to(self.device)
+        else:
+            self.autoencoder = None
 
         self.train_state = dict()
 
