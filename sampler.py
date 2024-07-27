@@ -1,3 +1,4 @@
+import math
 import time
 from argparse import ArgumentParser
 from pathlib import Path
@@ -87,6 +88,8 @@ def get_samples(
     sample_width: int,
     y: int = None,
     autoencoder=None,
+    late_model=None,
+    t_switch=np.inf
 ):
     seed_everything(seed)
     x = torch.randn(batch_size, num_channels, sample_height, sample_width).to(device)
@@ -96,6 +99,8 @@ def get_samples(
         with torch.no_grad():
             model_output = model(x, time_tensor, y)
         x = postprocessing(model_output, x, t)
+        if t == 1000 - t_switch:
+            model = late_model
 
     if autoencoder:
         print("Decode the images...")
@@ -111,9 +116,21 @@ def dump_samples(samples, output_folder: Path):
     # plt.savefig(output_folder / "histogram.png")
     # plt.clf()
 
+    num_samples = len(samples)
+    grid_size = math.ceil(math.sqrt(num_samples))
+    sample_height, sample_width = samples[0].shape[:2]
+
+    # Create an empty array for the grid image
+    grid_img = np.zeros((grid_size * sample_height, grid_size * sample_width, 3))
+
     for sample_id, sample in enumerate(samples):
         sample = np.clip(sample, 0, 1)
         plt.imsave(output_folder / f"{sample_id}.png", sample)
+
+        row, col = divmod(sample_id, grid_size)
+        grid_img[row * sample_height:(row + 1) * sample_height, col * sample_width:(col + 1) * sample_width, :] = sample
+
+    plt.imsave(output_folder / "grid_image.png", grid_img)
 
 
 def dump_statistics(elapsed_time, output_folder: Path):
@@ -124,7 +141,14 @@ def dump_statistics(elapsed_time, output_folder: Path):
 def get_args():
     parser = ArgumentParser()
     parser.add_argument("--seed", type=int, default=0)
-    parser.add_argument("--checkpoint_path", type=str, required=True)
+    parser.add_argument("--checkpoint_path",
+                        type=str,
+                        required=True,
+                        help="Path to checkpoint of the model")
+    parser.add_argument("--checkpoint_path_late",
+                        type=str,
+                        default=None,
+                        help="Path to checkpoint of the model to be used in the latest steps")
     parser.add_argument("--batch_size", type=int, required=True)
     parser.add_argument(
         "--parametrization",
@@ -138,6 +162,18 @@ def get_args():
         type=str,
         required=True,
         help="Path to yaml config file",
+    )
+    parser.add_argument(
+        "--config_path_late",
+        type=str,
+        default=None,
+        help="Path to yaml config file of the model to be used in the latest steps",
+    )
+    parser.add_argument(
+        "--t_switch",
+        type=int,
+        default=np.inf,
+        help="Sampling timestep where the model should be replaced by the late model",
     )
     parser.add_argument(
         "--class_id",
@@ -177,6 +213,17 @@ def main():
     model.load_state_dict(state_dict)
     model = model.eval().to(device)
 
+    if args.checkpoint_path_late:
+        config = load_config(args.config_path_late)
+        model_late = UViT(**config["model_params"])
+        state_dict = torch.load(args.checkpoint_path_late, map_location="cpu")
+        if "model_state_dict" in state_dict:
+            state_dict = state_dict["model_state_dict"]
+        model_late.load_state_dict(state_dict)
+        model_late = model_late.eval().to(device)
+    else:
+        model_late = None
+
     y = (
         torch.ones(args.batch_size, dtype=torch.int).to(device) * args.class_id
         if args.class_id is not None
@@ -200,6 +247,10 @@ def main():
         sample_width,
         y,
         autoencoder,
+        model_late,
+        args.t_switch
+
+
     )
     tac = time.time()
     dump_statistics(tac - tic, output_folder)
