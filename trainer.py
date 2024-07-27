@@ -140,11 +140,19 @@ class Trainer:
                 seed=self.args.seed,
                 data_dir=self.args.data_path,
             )
-        elif self.args.dataset == "imagenet":
+        elif self.args.dataset == "imagenet64":
             self.dataloader = get_imagenet_dataloader(
                 batch_size=self.args.batch_size,
                 seed=self.args.seed,
                 data_dir=self.args.data_path,
+                resize=True,
+            )
+        elif self.args.dataset == "imagenet256":
+            self.dataloader = get_imagenet_dataloader(
+                batch_size=self.args.batch_size,
+                seed=self.args.seed,
+                data_dir=self.args.data_path,
+                resize=False,
             )
         else:
             raise ValueError(f"Dataset {self.args.dataset} not implemented.")
@@ -298,7 +306,7 @@ class Trainer:
         data = batch[0].to(self.device)
         batch_size = data.size(0)
         clean_images = data
-        labels = batch[1].to(self.device) if self.args.dataset == "imagenet" else None
+        labels = batch[1].to(self.device) if "imagenet" in self.args.dataset else None
 
         timesteps = torch.randint(
             0, self.args.num_timesteps, (batch_size,), device=self.device
@@ -308,13 +316,13 @@ class Trainer:
 
         if self.args.model == "uvit":
             if self.args.parametrization == "predict_noise":
-                predicted_noise = self.model(noisy_images, timesteps)
+                predicted_noise = self.model(noisy_images, timesteps, labels)
                 loss = F.mse_loss(predicted_noise, noise)
             elif self.args.parametrization == "predict_original":
-                predicted_original = self.model(noisy_images, timesteps)
+                predicted_original = self.model(noisy_images, timesteps, labels)
                 loss = F.mse_loss(predicted_original, clean_images)
             elif self.args.parametrization == "predict_previous":
-                predicted_previous = self.model(noisy_images, timesteps)
+                predicted_previous = self.model(noisy_images, timesteps, labels)
 
                 betas = torch.linspace(1e-4, 0.02, 1000).to(self.device)
                 alphas = 1 - betas

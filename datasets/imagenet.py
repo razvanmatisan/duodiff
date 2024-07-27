@@ -1,7 +1,8 @@
+from pathlib import Path
+
 from torch.utils.data import DataLoader
 from torchvision import datasets, transforms
 
-from pathlib import Path
 from datasets.sampler import ResumableSeedableSampler
 
 
@@ -9,7 +10,9 @@ from datasets.sampler import ResumableSeedableSampler
 def get_imagenet_dataloader(
     batch_size,
     seed,
-    data_dir="./archive",
+    data_dir,
+    resize: bool,  # resizing to 64x64
+    normalize: bool = True,
 ):
     """
     Builds a dataloader with all images from a 540k subset of ImageNet (with 256x256 resolution).
@@ -22,13 +25,19 @@ def get_imagenet_dataloader(
         DataLoader: DataLoader object containing the dataset.
     """
 
-    mean = (0.5, 0.5, 0.5)
-    std = (0.5, 0.5, 0.5)
-
     # All images from the dataset are 256x256 resolution
-    transform = transforms.Compose(
-        [transforms.ToTensor(), transforms.Normalize(mean, std)]
-    )
+    transformations = [transforms.ToTensor()]
+
+    if normalize:
+        mean = (0.5, 0.5, 0.5)
+        std = (0.5, 0.5, 0.5)
+
+        transformations.append(transforms.Normalize(mean, std))
+
+    if resize:
+        transformations.append(transforms.Resize((64, 64)))
+
+    transform = transforms.Compose(transformations)
 
     path = Path(data_dir) / "imagenet"
 
