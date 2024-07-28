@@ -14,8 +14,9 @@ def read_samples(path):
 
     tensor_list = []
     for p in Path(path).rglob("*.png"):
-        img = Image.open(p).convert("RGB")
-        tensor_list.append(transform(img))
+        if "grid" not in str(p).split("/")[-1]:
+            img = Image.open(p).convert("RGB")
+            tensor_list.append(transform(img))
 
     stacked_tensor = torch.stack(tensor_list, dim=0)
     print(f"Read {len(stacked_tensor)} images")
