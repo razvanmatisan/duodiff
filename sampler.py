@@ -86,21 +86,47 @@ def get_samples(
     num_channels: int,
     sample_height: int,
     sample_width: int,
+    use_ddim: bool,
+    ddim_steps: int,
+    ddim_eta: float,
     y: int = None,
     autoencoder=None,
     late_model=None,
-    t_switch=np.inf
+    t_switch=np.inf,
 ):
     seed_everything(seed)
     x = torch.randn(batch_size, num_channels, sample_height, sample_width).to(device)
 
-    for t in tqdm(range(999, -1, -1)):
-        time_tensor = t * torch.ones(batch_size, device=device)
-        with torch.no_grad():
-            model_output = model(x, time_tensor, y)
-        x = postprocessing(model_output, x, t)
-        if t == 1000 - t_switch:
-            model = late_model
+    if use_ddim:
+        timesteps = np.linspace(0, 999, ddim_steps).astype(int)[::-1]
+        for t, s in zip(tqdm(timesteps[:-1]), timesteps[1:]):
+            assert s < t
+
+            time_tensor = t * torch.ones(batch_size, device=device)
+            with torch.no_grad():
+                model_output = model(x, time_tensor, y)
+
+            sigma_t_squared = betas_tilde[t] * ddim_eta
+
+            mean = torch.sqrt(alphas_bar[s] / alphas_bar[t]) * (
+                x - torch.sqrt(1 - alphas_bar[t]) * model_output
+            )
+            mean += torch.sqrt(1 - alphas_bar[s] - sigma_t_squared) * model_output
+
+            z = torch.randn_like(x) if s > 0 else 0
+            x = mean + sigma_t_squared * z
+
+            if t < 1000 - t_switch:
+                model = late_model
+
+    else:
+        for t in tqdm(range(999, -1, -1)):
+            time_tensor = t * torch.ones(batch_size, device=device)
+            with torch.no_grad():
+                model_output = model(x, time_tensor, y)
+            x = postprocessing(model_output, x, t)
+            if t == 1000 - t_switch:
+                model = late_model
 
     if autoencoder:
         print("Decode the images...")
@@ -128,7 +154,11 @@ def dump_samples(samples, output_folder: Path):
         plt.imsave(output_folder / f"{sample_id}.png", sample)
 
         row, col = divmod(sample_id, grid_size)
-        grid_img[row * sample_height:(row + 1) * sample_height, col * sample_width:(col + 1) * sample_width, :] = sample
+        grid_img[
+            row * sample_height : (row + 1) * sample_height,
+            col * sample_width : (col + 1) * sample_width,
+            :,
+        ] = sample
 
     plt.imsave(output_folder / "grid_image.png", grid_img)
 
@@ -141,14 +171,18 @@ def dump_statistics(elapsed_time, output_folder: Path):
 def get_args():
     parser = ArgumentParser()
     parser.add_argument("--seed", type=int, default=0)
-    parser.add_argument("--checkpoint_path",
-                        type=str,
-                        required=True,
-                        help="Path to checkpoint of the model")
-    parser.add_argument("--checkpoint_path_late",
-                        type=str,
-                        default=None,
-                        help="Path to checkpoint of the model to be used in the latest steps")
+    parser.add_argument(
+        "--checkpoint_path",
+        type=str,
+        required=True,
+        help="Path to checkpoint of the model",
+    )
+    parser.add_argument(
+        "--checkpoint_path_late",
+        type=str,
+        default=None,
+        help="Path to checkpoint of the model to be used in the latest steps",
+    )
     parser.add_argument("--batch_size", type=int, required=True)
     parser.add_argument(
         "--parametrization",
@@ -180,6 +214,17 @@ def get_args():
         type=int,
         default=None,
         help="Number up to 1000 that corresponds to a class",
+    )
+    parser.add_argument("--use_ddim", action="store_true")
+    parser.add_argument(
+        "--ddim_steps",
+        type=int,
+        default=50,
+    )
+    parser.add_argument(
+        "--ddim_eta",
+        type=float,
+        default=0.0,
     )
 
     return parser.parse_args()
@@ -259,19 +304,20 @@ def main():
 
     tic = time.time()
     samples = get_samples(
-        model,
-        args.batch_size,
-        postprocessing,
-        args.seed,
-        num_channels,
-        sample_height,
-        sample_width,
-        y,
-        autoencoder,
-        model_late,
-        args.t_switch
-
-
+        model=model,
+        batch_size=args.batch_size,
+        postprocessing=postprocessing,
+        seed=args.seed,
+        num_channels=num_channels,
+        sample_height=sample_height,
+        sample_width=sample_width,
+        use_ddim=args.use_ddim,
+        ddim_steps=args.ddim_steps,
+        ddim_eta=args.ddim_eta,
+        y=y,
+        autoencoder=autoencoder,
+        late_model=model_late,
+        t_switch=args.t_switch,
     )
     tac = time.time()
     dump_statistics(tac - tic, output_folder)
