@@ -12,7 +12,7 @@ def get_args():
         "--dataset",
         type=str,
         required=True,
-        choices=["cifar10", "celeba"],
+        choices=["cifar10", "celeba", "imagenet64", "imagenet256"],
         help="Dataset name.",
     )
     parser.add_argument(
@@ -43,6 +43,7 @@ def main():
     args = get_args()
     generated_images = read_samples(args.samples_path)
     n_samples = len(generated_images)
+    print(f"Using {n_samples}")
     real_images = get_dataset_samples(
         args.dataset, args.data_path, args.seed, n_samples
     )

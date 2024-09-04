@@ -7,6 +7,7 @@ from torchvision.utils import save_image
 
 from datasets.celeba import get_celeba_dataloader
 from datasets.cifar10 import get_cifar10_dataloader
+from datasets.imagenet import get_imagenet_dataloader
 
 
 def read_samples(path):
@@ -28,6 +29,10 @@ def get_dataset_samples(dataset_name, data_path, seed, n_samples):
         dataset = get_cifar10_dataloader(n_samples, seed, data_path, normalize=False)
     elif dataset_name == "celeba":
         dataset = get_celeba_dataloader(n_samples, seed, data_path, normalize=False)
+    elif dataset_name == "imagenet64":
+        dataset = get_imagenet_dataloader(n_samples, seed, data_path, normalize=False, resize=True)
+    elif dataset_name == "imagenet256":
+        dataset = get_imagenet_dataloader(n_samples, seed, data_path, normalize=False, resize=False)
     else:
         raise ValueError("Incorrect dataset name")
 
