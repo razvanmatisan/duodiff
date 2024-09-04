@@ -236,11 +236,20 @@ def main():
     else:
         model_late = None
 
+    # y = (
+    #     torch.ones(args.batch_size, dtype=torch.int).to(device) * args.class_id
+    #     if args.class_id is not None
+    #     else None
+    # )
+
+    seed_everything(args.seed)
+
     y = (
-        torch.ones(args.batch_size, dtype=torch.int).to(device) * args.class_id
+        torch.randint(1, 1001, (args.batch_size,)).to(device) 
         if args.class_id is not None
         else None
     )
+
     if "autoencoder" in config:
         autoencoder = get_autoencoder(
             config["autoencoder"]["autoencoder_checkpoint_path"]

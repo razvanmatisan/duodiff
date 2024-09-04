@@ -45,12 +45,13 @@ def get_samples(
     sample_height: int,
     sample_width: int,
     threshold: float,
+    depth: int,
     y: int = None,
     autoencoder=None,
 ):
     seed_everything(seed)
     x = torch.randn(batch_size, num_channels, sample_height, sample_width).to(device)
-    error_prediction_by_timestep = torch.zeros(1000, 13)
+    error_prediction_by_timestep = torch.zeros(1000, depth)
     indices_by_timestep = torch.zeros(1000, batch_size)
 
     for t in tqdm(range(999, -1, -1)):
@@ -67,7 +68,7 @@ def get_samples(
         model_output = outputs[indices, torch.arange(batch_size)]
 
         # Log for visualization
-        error_prediction_by_timestep[t] = classifier_outputs.mean(axis=1)[:13]
+        error_prediction_by_timestep[t] = classifier_outputs.mean(axis=1)[:depth]
         indices_by_timestep[t, :] = indices
 
         alpha_t = alphas[t]
@@ -158,6 +159,7 @@ def main():
     num_channels = config["model_params"]["in_chans"]
     sample_height = config["model_params"]["img_size"]
     sample_width = config["model_params"]["img_size"]
+    depth = config["model_params"]["depth"]
 
     state_dict = torch.load(args.checkpoint_path, map_location="cpu")
     if "model_state_dict" in state_dict:
@@ -165,11 +167,20 @@ def main():
     model.load_state_dict(state_dict)
     model = model.eval().to(device)
 
+    # y = (
+    #     torch.ones(args.batch_size, dtype=torch.int).to(device) * args.class_id
+    #     if args.class_id is not None
+    #     else None
+    # )
+
+    seed_everything(args.seed)
+
     y = (
-        torch.ones(args.batch_size, dtype=torch.int).to(device) * args.class_id
+        torch.randint(1, 1001, (args.batch_size,)).to(device) 
         if args.class_id is not None
         else None
     )
+
     if "autoencoder" in config:
         autoencoder = get_autoencoder(
             config["autoencoder"]["autoencoder_checkpoint_path"]
@@ -186,6 +197,7 @@ def main():
         sample_height=sample_height,
         sample_width=sample_width,
         threshold=args.threshold,
+        depth=depth,
         y=y,
         autoencoder=autoencoder,
     )
