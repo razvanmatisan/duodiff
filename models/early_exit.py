@@ -280,7 +280,7 @@ class EarlyExitUViT(nn.Module):
         )
         time_token = time_token.unsqueeze(dim=1)
         x = torch.cat((time_token, x), dim=1)
-        if y is not None:
+        if y is not None and self.uvit.label_emb is not None:
             label_emb = self.uvit.label_emb(y)
             label_emb = label_emb.unsqueeze(dim=1)
             x = torch.cat((label_emb, x), dim=1)
