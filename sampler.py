@@ -8,6 +8,7 @@ import torch
 from einops import rearrange
 from matplotlib import pyplot as plt
 from tqdm import tqdm
+from typing import List
 
 from models.utils.autoencoder import get_autoencoder
 from models.uvit import UViT
@@ -89,6 +90,7 @@ def get_samples(
     use_ddim: bool,
     ddim_steps: int,
     ddim_eta: float,
+    timesteps_save: List[int],
     y: int = None,
     autoencoder=None,
     late_model=None,
@@ -96,6 +98,7 @@ def get_samples(
 ):
     seed_everything(seed)
     x = torch.randn(batch_size, num_channels, sample_height, sample_width).to(device)
+    intermediate_samples = []
 
     if use_ddim:
         timesteps = np.linspace(0, 999, ddim_steps).astype(int)[::-1]
@@ -119,14 +122,22 @@ def get_samples(
             if t < 1000 - t_switch:
                 model = late_model
 
+            if 1000 - t in timesteps_save:
+                intermediate_samples.append(x)
+
     else:
         for t in tqdm(range(999, -1, -1)):
             time_tensor = t * torch.ones(batch_size, device=device)
             with torch.no_grad():
                 model_output = model(x, time_tensor, y)
             x = postprocessing(model_output, x, t)
+
             if t == 1000 - t_switch:
                 model = late_model
+
+            if 1000 - t in timesteps_save:
+                intermediate_samples.append(x)
+
 
     if autoencoder:
         print("Decode the images...")
@@ -134,10 +145,18 @@ def get_samples(
 
     samples = (x + 1) / 2
     samples = rearrange(samples, "b c h w -> b h w c")
-    return samples.cpu().numpy()
+
+    for i, x in enumerate(intermediate_samples):
+        if autoencoder:
+            x = autoencoder.decode(x)
+        x = (x + 1) / 2
+        x = rearrange(x, "b c h w -> b h w c")
+        intermediate_samples[i] = x.cpu().numpy()
+
+    return samples.cpu().numpy(), intermediate_samples
 
 
-def dump_samples(samples, output_folder: Path):
+def dump_samples(samples, output_folder: Path, timestep=1000):
     # plt.hist(samples.flatten())
     # plt.savefig(output_folder / "histogram.png")
     # plt.clf()
@@ -151,7 +170,8 @@ def dump_samples(samples, output_folder: Path):
 
     for sample_id, sample in enumerate(samples):
         sample = np.clip(sample, 0, 1)
-        plt.imsave(output_folder / f"{sample_id}.png", sample)
+        filename = f"{sample_id}_{timestep}.png" if timestep !=1000 else f"{sample_id}.png"
+        plt.imsave(output_folder / filename, sample)
 
         row, col = divmod(sample_id, grid_size)
         grid_img[
@@ -225,6 +245,12 @@ def get_args():
         "--ddim_eta",
         type=float,
         default=0.0,
+    )
+    parser.add_argument(
+        "--timesteps_save",
+        type=int,
+        nargs="+",
+        default=[]
     )
 
     return parser.parse_args()
@@ -303,7 +329,7 @@ def main():
         autoencoder = None
 
     tic = time.time()
-    samples = get_samples(
+    samples, intermediate_samples = get_samples(
         model=model,
         batch_size=args.batch_size,
         postprocessing=postprocessing,
@@ -318,11 +344,16 @@ def main():
         autoencoder=autoencoder,
         late_model=model_late,
         t_switch=args.t_switch,
+        timesteps_save=args.timesteps_save
     )
     tac = time.time()
     dump_statistics(tac - tic, output_folder)
 
     dump_samples(samples, output_folder)
+
+    if args.timesteps_save:
+        for timestep, samples in zip(args.timesteps_save, intermediate_samples):
+            dump_samples(samples, output_folder, timestep)
 
 
 if __name__ == "__main__":
