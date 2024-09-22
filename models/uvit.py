@@ -275,6 +275,7 @@ class UViT(nn.Module):
             self.label_emb = nn.Embedding(self.num_classes, embed_dim)
             self.extras = 2
         else:
+            self.label_emb = None
             self.extras = 1
 
         self.pos_embed = nn.Parameter(
