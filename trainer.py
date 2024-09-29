@@ -44,7 +44,9 @@ class Trainer:
         self._save_hparams()
 
         if hasattr(self.args, "autoencoder_checkpoint_path"):
-            self.autoencoder = get_autoencoder(self.args.autoencoder_checkpoint_path).to(self.device)
+            self.autoencoder = get_autoencoder(
+                self.args.autoencoder_checkpoint_path
+            ).to(self.device)
         else:
             self.autoencoder = None
 

@@ -2,13 +2,13 @@ import math
 import time
 from argparse import ArgumentParser
 from pathlib import Path
+from typing import List
 
 import numpy as np
 import torch
 from einops import rearrange
 from matplotlib import pyplot as plt
 from tqdm import tqdm
-from typing import List
 
 from models.utils.autoencoder import get_autoencoder
 from models.uvit import UViT
@@ -138,7 +138,6 @@ def get_samples(
             if 1000 - t in timesteps_save:
                 intermediate_samples.append(x)
 
-
     if autoencoder:
         print("Decode the images...")
         x = autoencoder.decode(x)
@@ -170,7 +169,9 @@ def dump_samples(samples, output_folder: Path, timestep=1000):
 
     for sample_id, sample in enumerate(samples):
         sample = np.clip(sample, 0, 1)
-        filename = f"{sample_id}_{timestep}.png" if timestep !=1000 else f"{sample_id}.png"
+        filename = (
+            f"{sample_id}_{timestep}.png" if timestep != 1000 else f"{sample_id}.png"
+        )
         plt.imsave(output_folder / filename, sample)
 
         row, col = divmod(sample_id, grid_size)
@@ -246,12 +247,7 @@ def get_args():
         type=float,
         default=0.0,
     )
-    parser.add_argument(
-        "--timesteps_save",
-        type=int,
-        nargs="+",
-        default=[]
-    )
+    parser.add_argument("--timesteps_save", type=int, nargs="+", default=[])
 
     return parser.parse_args()
 
@@ -316,7 +312,7 @@ def main():
     seed_everything(args.seed)
 
     y = (
-        torch.randint(1, 1001, (args.batch_size,)).to(device) 
+        torch.randint(1, 1001, (args.batch_size,)).to(device)
         if args.class_id is not None
         else None
     )
@@ -344,7 +340,7 @@ def main():
         autoencoder=autoencoder,
         late_model=model_late,
         t_switch=args.t_switch,
-        timesteps_save=args.timesteps_save
+        timesteps_save=args.timesteps_save,
     )
     tac = time.time()
     dump_statistics(tac - tic, output_folder)

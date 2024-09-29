@@ -46,5 +46,9 @@ def get_imagenet_dataloader(
     sampler = ResumableSeedableSampler(dataset, seed=seed)
 
     return DataLoader(
-        dataset=dataset, batch_size=batch_size, drop_last=True, sampler=sampler, num_workers=36
+        dataset=dataset,
+        batch_size=batch_size,
+        drop_last=True,
+        sampler=sampler,
+        num_workers=36,
     )

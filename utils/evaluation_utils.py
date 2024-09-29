@@ -30,9 +30,13 @@ def get_dataset_samples(dataset_name, data_path, seed, n_samples):
     elif dataset_name == "celeba":
         dataset = get_celeba_dataloader(n_samples, seed, data_path, normalize=False)
     elif dataset_name == "imagenet64":
-        dataset = get_imagenet_dataloader(n_samples, seed, data_path, normalize=False, resize=True)
+        dataset = get_imagenet_dataloader(
+            n_samples, seed, data_path, normalize=False, resize=True
+        )
     elif dataset_name == "imagenet256":
-        dataset = get_imagenet_dataloader(n_samples, seed, data_path, normalize=False, resize=False)
+        dataset = get_imagenet_dataloader(
+            n_samples, seed, data_path, normalize=False, resize=False
+        )
     else:
         raise ValueError("Incorrect dataset name")
 

@@ -176,7 +176,7 @@ def main():
     seed_everything(args.seed)
 
     y = (
-        torch.randint(1, 1001, (args.batch_size,)).to(device) 
+        torch.randint(1, 1001, (args.batch_size,)).to(device)
         if args.class_id is not None
         else None
     )
