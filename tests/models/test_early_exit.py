@@ -113,28 +113,3 @@ def test_backward(classifier_type):
 
     fake_loss = torch.sum(y)
     fake_loss.backward()
-
-
-@pytest.mark.skip(reason="no early exit on inference mode yet")
-def test_inference_no_early_exit():
-    model = EarlyExitUViT(UViT(**cifar10_config), exit_threshold=-torch.inf)
-    model.eval()
-    with torch.inference_mode():
-        y, classifier_outputs, early_exit_layer = model(x, t)
-
-    assert len(classifier_outputs) == 13
-    assert y.shape == (batch_size, num_channels, height, width)
-    assert early_exit_layer == 13
-
-
-@pytest.mark.skip(reason="no early exit on inference mode yet")
-def test_inference_exit_first():
-    model = EarlyExitUViT(UViT(**cifar10_config), exit_threshold=torch.inf)
-    model.eval()
-    with torch.inference_mode():
-        y, classifier_outputs, early_exit_layer = model(x, t)
-
-    assert y.shape == (batch_size, num_channels, height, width)
-    assert len(classifier_outputs) == 1
-    assert all(classifier_outputs[0] < model.exit_threshold)
-    assert early_exit_layer == 0
